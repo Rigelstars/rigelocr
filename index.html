@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rigel OCR</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2b0714">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; color: #ffeef5;
+         background: linear-gradient(180deg,#33081f 0%,#8c1d4f 45%,#ff7ab0 100%);
+         min-height: 100vh; }
+  header { background: #2b0714; padding: 16px 20px; display: flex;
+           justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+  header h1 { margin: 0; font-size: 22px; color: #fff; }
+  .hdr-btn { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 0 6px; }
+  main { padding: 20px; max-width: 700px; margin: auto; }
+  .desc { font-size: 15px; line-height: 1.5; color: #ffdcec; }
+  .seg { display: flex; margin: 18px 0; }
+  .seg button { flex: 1; padding: 14px 10px; font-size: 15px; cursor: pointer;
+                background: #3a0d24; color: #fff; border: 1px solid #c77ba4; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; }
+  .seg button:last-child  { border-radius: 0 8px 8px 0; margin-left: -1px; }
+  .seg button.active { background: #a3265f; }
+  .primary { display: block; width: 100%; padding: 16px; border: none; border-radius: 999px;
+             background: #ff4d94; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+             box-shadow: 0 4px 14px rgba(255,77,148,.4); }
+  .primary:disabled { opacity: .45; }
+  .danger { background: #7a1230; }
+  .mini { padding: 10px 16px; border-radius: 10px; background: #a3265f; color: #fff;
+          border: none; margin: 6px 8px 6px 0; font-size: 13px; font-weight: 700; cursor: pointer; }
+  fieldset { border: 1px solid #e59cc0; border-radius: 8px; margin: 22px 0 6px; padding: 14px; }
+  fieldset legend { padding: 0 8px; font-size: 14px; color: #ffdcec; }
+  fieldset input { width: 100%; padding: 14px; font-size: 16px; background: transparent;
+                   border: none; color: #fff; outline: none; }
+  .hint { font-size: 13px; color: #f3cfe0; margin: 4px 8px 10px; line-height: 1.5; }
+  h3 { margin: 26px 0 12px; font-size: 17px; color: #fff; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 10px; }
+  .grid2 label { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+  .grid2 input[type=checkbox] { width: 26px; height: 26px; accent-color: #ff4d94; }
+  #status { min-height: 24px; margin: 12px 0; font-weight: 600; color: #ffd1e3;
+            font-size: 14px; word-break: break-word; text-align: center; }
+  #progWrap { text-align: center; margin: 18px 0; }
+  .spinner { width: 26px; height: 26px; margin: 6px auto;
+             border: 4px solid rgba(255,255,255,.25); border-top-color: #ffd1e3;
+             border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #progText { margin: 12px 0 16px; font-size: 15px; color: #fff; }
+  #cancelBtn { max-width: 180px; margin: auto; }
+  #output { width: 100%; min-height: 260px; background: #1c0410; color: #ff9ec4; border: 1px solid #55203a;
+            border-radius: 8px; padding: 12px; font-family: monospace; font-size: 14px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rigel OCR</h1>
+  <div>
+    <button id="backBtn" class="hdr-btn" hidden onclick="goBack()">←</button>
+    <button id="histBtn" class="hdr-btn" onclick="openHistory()">🕘</button>
+    <button id="gearBtn" class="hdr-btn" onclick="openSettings()">⚙</button>
+  </div>
+</header>
+
+<main id="screen-main">
+  <p class="desc">Ekstrak bubble speech, SFX, dan teks luar dengan sekali sentuh — semua genre, semua adegan.</p>
+  <div class="seg">
+    <button id="modeSingle" onclick="setMode('single')">Single</button>
+    <button id="modeBulk" class="active" onclick="setMode('bulk')">✓ Bulk</button>
+  </div>
+  <button id="pickBtn" class="primary" onclick="pickImages()">🖼 Pilih Gambar (masuk antrean)</button>
+  <input type="file" id="fileInput" accept="image/*" multiple hidden>
+
+  <div id="queueBox" hidden>
+    <div id="queueText" class="hint" style="text-align:center;margin:12px 0"></div>
+    <button id="processBtn" class="primary" onclick="startProcess()">▶ PROSES</button>
+    <button id="clearQueueBtn" class="primary danger" style="margin-top:8px" onclick="clearQueue()">✖ Kosongkan Antrean</button>
+  </div>
+  <div class="hint">Tips: bila picker macet saat memilih banyak sekaligus, pilih 5–10 gambar beberapa kali, lalu tekan ▶ PROSES.</div>
+
+  <div id="progWrap" hidden>
+    <div class="spinner"></div>
+    <div id="progText">Gambar 1/1, segmen 1/1</div>
+    <button id="cancelBtn" class="primary" onclick="cancelOCR()">Batal</button>
+  </div>
+
+  <div id="status"></div>
+  <h3 id="outTitle" hidden>📝 Hasil Akhir:</h3>
+  <textarea id="output" readonly hidden></textarea>
+  <button id="copyBtn" class="primary" style="margin-top:12px" hidden onclick="copyText()">📋 COPY SEMUA TEKS</button>
+  <button id="btnHapus" class="primary danger" style="margin-top:10px" hidden onclick="clearResults()">🗑 HAPUS HASIL</button>
+</main>
+
+<main id="screen-settings" hidden>
+  <h3>🤖 Mesin Vision AI (sakelar):</h3>
+  <div class="grid2">
+    <label><input type="checkbox" id="useGemini" checked onchange="paintEngines()"> 🆓 Gemini</label>
+    <label><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
+  </div>
+  <div class="hint">
+    Resep:<br>
+    • <b>Manhwa biasa (hemat/gratis)</b>: Gemini ON, Sumopod OFF.<br>
+    • <b>Chapter smut</b>: DUA-DUANYA ON → Gemini dulu, segmen yang diblokir Google otomatis ditambal Sumopod.<br>
+    • <b>Mau ngebut</b>: Sumopod ON, Gemini OFF.<br>
+    • Dua-duanya OFF → mesin gratis (OCR.space / Tesseract offline).
+  </div>
+
+  <div id="grpGemini">
+    <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
+    <div class="hint">Ambil gratis di <b>aistudio.google.com/api-keys</b>.</div>
+    <fieldset><legend>Model Gemini</legend><input id="setModel" value="gemini-2.5-flash"></fieldset>
+    <div class="hint">Format Google tanpa prefix. Prefix "gemini/..." otomatis dibuang.</div>
+    <button class="mini" onclick="testGemini()">🩺 Tes Koneksi Gemini</button>
+  </div>
+
+  <div id="grpSumo" hidden>
+    <fieldset><legend>🔑 Sumopod Token</legend><input id="setSumoKey" placeholder="sk-..."></fieldset>
+    <div class="hint">Buat key di <b>ai.sumopod.com</b> → tab AI → API Keys.</div>
+    <fieldset><legend>Model Sumopod</legend><input id="setSumoModel" value="gemini/gemini-3.5-flash-lite"></fieldset>
+    <div class="hint">Bila 404, coba: gemini/gemini-3-flash-preview / gemini/gemini-2.5-flash</div>
+    <fieldset><legend>Base URL</legend><input id="setSumoBase" value="https://ai.sumopod.com/v1"></fieldset>
+    <div class="grid2">
+      <label><input type="checkbox" id="sumoCors"> Pakai proxy CORS</label>
+    </div>
+    <div class="hint">Centang hanya bila 🩺 Tes gagal dengan "Failed to fetch".</div>
+    <button class="mini" onclick="testSumopod()">🩺 Tes Koneksi Sumopod</button>
+  </div>
+
+  <div class="grid2">
+    <label><input type="checkbox" id="segOn" checked> Potong halaman panjang</label>
+  </div>
+  <fieldset><legend>Tinggi segmen (px)</legend><input id="setSegH" type="number" value="3000"></fieldset>
+  <button class="mini" onclick="setSegPreset(3000)">3000 (akurat)</button>
+  <button class="mini" onclick="setSegPreset(4000)">4000 (hemat)</button>
+  <button class="mini" onclick="setSegPreset(5000)">5000 (paling hemat)</button>
+  <div class="hint">Makin tinggi = makin sedikit potongan = makin sedikit panggilan API (cepat & murah).</div>
+
+  <h3>⚙ Cadangan (bila tanpa key AI):</h3>
+  <div class="grid2">
+    <label><input type="checkbox" id="cloud" checked> OCR Cloud</label>
+    <label><input type="checkbox" id="confFilter" checked> Saring teks rusak</label>
+    <label><input type="checkbox" id="highAcc" checked> Model offline tinggi</label>
+  </div>
+  <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
+
+  <h3>🔐 Backup & Restore Data:</h3>
+  <button class="mini" onclick="backupData()">💾 Backup (salin kode)</button>
+  <button class="mini" onclick="backupFile()">📦 Unduh file backup</button>
+  <button class="mini" onclick="restoreData()">📥 Restore</button>
+  <div class="hint">Key API + pengaturan + riwayat tersimpan HANYA di HP-mu. Backup sesekali (simpan di Notes/Drive); bila ganti HP atau data terhapus, pulihkan lewat Restore. Tidak perlu login.</div>
+
+  <h3>Custom Legend:</h3>
+  <fieldset><legend>Bubble Bulat</legend><input id="setBubble" value="()"></fieldset>
+  <fieldset><legend>Bubble Kotak</legend><input id="setBox" value="[]"></fieldset>
+  <fieldset><legend>SFX</legend><input id="setSfx" value="//"></fieldset>
+  <fieldset><legend>Luar Bubble</legend><input id="setOutside" value='"'></fieldset>
+  <fieldset><legend>Batch Size</legend><input id="setBatch" type="number" value="5"></fieldset>
+
+  <h3>Sertakan Legend di Output:</h3>
+  <div class="grid2">
+    <label><input type="checkbox" id="incBubble"> Bubble Bulat</label>
+    <label><input type="checkbox" id="incBox"> Bubble Kotak</label>
+    <label><input type="checkbox" id="incSfx"> SFX</label>
+    <label><input type="checkbox" id="incOutside"> Luar Bubble</label>
+  </div>
+
+  <h3>Bahasa (hanya mesin cadangan):</h3>
+  <div class="grid2">
+    <label><input type="checkbox" id="langEng"> Inggris</label>
+    <label><input type="checkbox" id="langInd"> Indonesia</label>
+    <label><input type="checkbox" id="langJpn"> Jepang</label>
+    <label><input type="checkbox" id="langKor" checked> Korea</label>
+    <label><input type="checkbox" id="langChi"> Cina</label>
+  </div>
+
+  <button class="primary" style="max-width:220px;margin-top:26px" onclick="saveSettings()">Simpan</button>
+</main>
+
+<main id="screen-history" hidden>
+  <h3>🕘 Riwayat OCR</h3>
+  <div class="hint">10 hasil terakhir tersimpan otomatis. Ketuk "Pulihkan" bila hasil terhapus.</div>
+  <div id="histList"></div>
+  <button class="primary danger" style="max-width:260px;margin-top:16px" onclick="clearHist()">🗑 Bersihkan Riwayat</button>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+window.addEventListener('error', e=>{ setStatus('❌ JS: '+e.message); });
+window.addEventListener('unhandledrejection', e=>{ setStatus('❌ Async: '+(e.reason&&e.reason.message||e.reason)); });
+
+const $=id=>document.getElementById(id);
+const screenMain=$('screen-main'), screenSettings=$('screen-settings'), screenHistory=$('screen-history'),
+      statusEl=$('status'), outTitle=$('outTitle'), outputBox=$('output'),
+      copyBtn=$('copyBtn'), btnHapus=$('btnHapus'), pickBtn=$('pickBtn'),
+      fileInput=$('fileInput'), modeSingle=$('modeSingle'), modeBulk=$('modeBulk'),
+      gearBtn=$('gearBtn'), backBtn=$('backBtn'), histBtn=$('histBtn'),
+      progWrap=$('progWrap'), progText=$('progText'),
+      queueBox=$('queueBox'), queueText=$('queueText'),
+      processBtn=$('processBtn'), clearQueueBtn=$('clearQueueBtn'),
+      grpGemini=$('grpGemini'), grpSumo=$('grpSumo'), histList=$('histList');
+
+const DEF = {
+  legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'"',
+  batch:5, useGemini:true, useSumo:false,
+  geminiKey:'', model:'gemini-2.5-flash',
+  sumoKey:'', sumoModel:'gemini/gemini-3.5-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
+  segOn:true, segH:3000,
+  cloud:true, apiKey:'helloworld', highAcc:true, confFilter:true,
+  inc:{bubble:false, box:false, sfx:false, outside:false},
+  langs:{eng:false, ind:false, jpn:false, kor:true, chi_sim:false}
+};
+let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
+    curScreen='main', pending=[], processing=false,
+    runNotes=[], calls={gemini:0,sumopod:0};
+
+function loadSettings(){
+  let raw={};
+  try{ raw=JSON.parse(localStorage.getItem('rigelocr_v8')||'{}'); }catch(e){}
+  const s=Object.assign({},DEF,raw);
+  if(raw.provider==='sumopod'){ s.useSumo=true; s.useGemini=false; }
+  return s;
+}
+const val=(id,d)=>($(id).value.trim()||d);
+const chk=id=>$(id).checked;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function normGeminiModel(m){
+  m=(m||'').trim();
+  if(!m) return 'gemini-2.5-flash';
+  m=m.replace(/^models\//i,'');
+  if(m.includes('/')) m=m.split('/').pop();
+  return m||'gemini-2.5-flash';
+}
+function setSegPreset(v){ $('setSegH').value=v; }
+
+function showScreen(name){
+  curScreen=name;
+  screenMain.hidden = name!=='main';
+  screenSettings.hidden = name!=='settings';
+  screenHistory.hidden = name!=='history';
+  gearBtn.hidden = name!=='main';
+  histBtn.hidden = name!=='main';
+  backBtn.hidden = name==='main';
+}
+function goBack(){ if(curScreen==='settings') saveSettings(); else showScreen('main'); }
+function paintEngines(){
+  grpGemini.hidden = !chk('useGemini');
+  grpSumo.hidden   = !chk('useSumo');
+}
+function openSettings(){
+  $('setBubble').value=S.legend_bubble; $('setBox').value=S.legend_box;
+  $('setSfx').value=S.legend_sfx; $('setOutside').value=S.legend_outside;
+  $('setBatch').value=S.batch;
+  $('useGemini').checked=S.useGemini; $('useSumo').checked=S.useSumo;
+  $('setGeminiKey').value=S.geminiKey; $('setModel').value=S.model;
+  $('setSumoKey').value=S.sumoKey; $('setSumoModel').value=S.sumoModel;
+  $('setSumoBase').value=S.sumoBase; $('sumoCors').checked=S.sumoCors;
+  $('segOn').checked=S.segOn; $('setSegH').value=S.segH;
+  $('cloud').checked=S.cloud; $('confFilter').checked=S.confFilter; $('highAcc').checked=S.highAcc;
+  $('setKey').value=S.apiKey;
+  $('incBubble').checked=S.inc.bubble; $('incBox').checked=S.inc.box;
+  $('incSfx').checked=S.inc.sfx; $('incOutside').checked=S.inc.outside;
+  $('langEng').checked=S.langs.eng; $('langInd').checked=S.langs.ind;
+  $('langJpn').checked=S.langs.jpn; $('langKor').checked=S.langs.kor;
+  $('langChi').checked=S.langs.chi_sim;
+  paintEngines();
+  showScreen('settings');
+}
+function saveSettings(){
+  S.useGemini=chk('useGemini'); S.useSumo=chk('useSumo');
+  S.legend_bubble=val('setBubble','()'); S.legend_box=val('setBox','[]');
+  S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','"');
+  S.batch=Math.max(1,parseInt(val('setBatch','5'))||5);
+  S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(val('setModel','gemini-2.5-flash'));
+  S.sumoKey=val('setSumoKey',''); S.sumoModel=val('setSumoModel','gemini/gemini-3.5-flash-lite');
+  S.sumoBase=val('setSumoBase','https://ai.sumopod.com/v1'); S.sumoCors=chk('sumoCors');
+  S.segOn=chk('segOn'); S.segH=Math.max(800,parseInt(val('setSegH','3000'))||3000);
+  S.cloud=chk('cloud'); S.confFilter=chk('confFilter'); S.highAcc=chk('highAcc');
+  S.apiKey=val('setKey','helloworld');
+  S.inc={bubble:chk('incBubble'),box:chk('incBox'),sfx:chk('incSfx'),outside:chk('incOutside')};
+  S.langs={eng:chk('langEng'),ind:chk('langInd'),jpn:chk('langJpn'),kor:chk('langKor'),chi_sim:chk('langChi')};
+  if(!Object.values(S.langs).some(Boolean)) S.langs.eng=true;
+  localStorage.setItem('rigelocr_v8',JSON.stringify(S));
+  showScreen('main'); updateOutput();
+}
+
+/* ===== BACKUP & RESTORE ===== */
+function backupData(){
+  const code='RIGELBACKUP:'+btoa(unescape(encodeURIComponent(JSON.stringify({settings:S,history:loadHist()}))));
+  try{ navigator.clipboard.writeText(code); alert('✅ Kode backup tersalin!\nTempel & simpan di Notes/Drive.'); }
+  catch(e){ prompt('Salin kode backup ini:', code); }
+}
+function backupFile(){
+  const blob=new Blob([JSON.stringify({settings:S,history:loadHist()},null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='rigel-backup.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+function restoreData(){
+  const inp=prompt('Tempel kode backup (RIGELBACKUP:...) atau isi file JSON:');
+  if(!inp) return;
+  try{
+    let obj=null;
+    if(inp.startsWith('RIGELBACKUP:')) obj=JSON.parse(decodeURIComponent(escape(atob(inp.slice(14)))));
+    else obj=JSON.parse(inp);
+    if(obj.settings) localStorage.setItem('rigelocr_v8',JSON.stringify(obj.settings));
+    if(obj.history) localStorage.setItem(HIST_KEY,JSON.stringify(obj.history));
+    alert('✅ Restore berhasil! Memuat ulang...');
+    location.reload();
+  }catch(e){ alert('❌ Kode backup tidak valid: '+e.message); }
+}
+
+async function testGemini(){
+  const key=$('setGeminiKey').value.trim();
+  const model=normGeminiModel($('setModel').value);
+  $('setModel').value=model;
+  if(!key){ alert('Isi API Key Gemini dulu.'); return; }
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(key),
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'ping'}]}]})});
+    const t=await r.text();
+    if(r.ok) alert('✅ Gemini OK! Model "'+model+'" valid.');
+    else if(/model name format|not found|INVALID_ARGUMENT/i.test(t))
+      alert('❌ Nama model tidak valid untuk Google.\nGanti dengan: gemini-2.5-flash (tanpa prefix "gemini/")');
+    else alert('❌ Gemini HTTP '+r.status+'\n'+t.slice(0,200));
+  }catch(e){ alert('❌ Gemini: '+e.message); }
+}
+async function testSumopod(){
+  const key=$('setSumoKey').value.trim(),
+        model=$('setSumoModel').value.trim()||'gemini/gemini-3.5-flash-lite',
+        base=($('setSumoBase').value.trim()||'https://ai.sumopod.com/v1').replace(/\/+$/,'');
+  if(!key){ alert('Isi Sumopod Token dulu.'); return; }
+  let url=base+'/chat/completions';
+  if($('sumoCors').checked) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  try{
+    const r=await fetch(url,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:model,messages:[{role:'user',content:'ping'}]})});
+    const t=await r.text();
+    if(r.ok) alert('✅ Sumopod OK! Model "'+model+'" aktif.');
+    else alert('❌ Sumopod HTTP '+r.status+'\n'+t.slice(0,200)+'\n\n401 = token/saldo. 404 = ganti nama model.');
+  }catch(e){
+    alert('❌ Gagal terhubung: '+e.message+'\nKemungkinan API memblokir browser. Centang "Pakai proxy CORS" lalu tes lagi.');
+  }
+}
+
+const HIST_KEY='rigelocr_hist';
+function loadHist(){ try{ return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); }catch(e){ return []; } }
+function pushHist(text){
+  const h=loadHist(); h.unshift({ts:Date.now(),text:text});
+  if(h.length>10) h.length=10;
+  localStorage.setItem(HIST_KEY,JSON.stringify(h));
+}
+function openHistory(){ renderHist(); showScreen('history'); }
+function renderHist(){
+  const h=loadHist(); histList.innerHTML='';
+  if(!h.length){ histList.innerHTML='<div class="hint">Riwayat kosong.</div>'; return; }
+  h.forEach((e,i)=>{
+    const prev=esc((e.text||'').split('\n').filter(Boolean).slice(0,3).join('  |  ')).slice(0,140);
+    const d=document.createElement('div');
+    d.style.cssText='background:rgba(60,8,35,.45);border-left:5px solid #ff9ec4;border-radius:8px;padding:12px;margin:10px 0';
+    d.innerHTML='<div style="font-size:14px;opacity:.85">'+new Date(e.ts).toLocaleString('id-ID')+'</div>'+
+      '<div style="margin:6px 0 10px;font-size:14px;word-break:break-word">'+prev+'…</div>'+
+      '<button class="primary" style="padding:10px" onclick="restoreHist('+i+')">♻ Pulihkan</button>';
+    histList.appendChild(d);
+  });
+}
+function restoreHist(i){
+  const e=loadHist()[i]; if(!e) return;
+  results=[]; updateOutput(); showScreen('main');
+  outTitle.hidden=false; outputBox.hidden=false; copyBtn.hidden=false; btnHapus.hidden=false;
+  outputBox.value=e.text;
+  setStatus('♻ Hasil dipulihkan dari riwayat.');
+}
+function clearHist(){ localStorage.removeItem(HIST_KEY); renderHist(); }
+
+function setMode(m){
+  modeSingle.className=m==='single'?'active':'';
+  modeBulk.className=m==='bulk'?'active':'';
+  modeSingle.textContent=(m==='single'?'✓ ':'')+'Single';
+  modeBulk.textContent=(m==='bulk'?'✓ ':'')+'Bulk';
+  fileInput.multiple=(m==='bulk');
+  pickBtn.innerHTML=m==='bulk'?'🖼 Pilih Gambar (masuk antrean)':'🖼 Pilih 1 Gambar';
+  if(m==='single'){ pending=[]; refreshQueue(); }
+}
+function pickImages(){ if(!processing) fileInput.click(); }
+fileInput.addEventListener('change',()=>{
+  const f=Array.from(fileInput.files); fileInput.value='';
+  if(!f.length){ setStatus('⚠ Picker tidak mengembalikan gambar. Coba pilih lebih sedikit (5–10).'); return; }
+  pending=pending.concat(f); refreshQueue();
+  setStatus('📥 +'+f.length+' gambar masuk antrean.');
+});
+function refreshQueue(){
+  queueBox.hidden = pending.length===0 || processing;
+  queueText.textContent='📚 '+pending.length+' gambar dalam antrean';
+  processBtn.innerHTML='▶ PROSES ('+pending.length+')';
+}
+function clearQueue(){ pending=[]; refreshQueue(); setStatus('Antrean dikosongkan.'); }
+function startProcess(){
+  if(!pending.length||processing) return;
+  const files=pending; pending=[]; refreshQueue();
+  runOCR(files);
+}
+
+function setStatus(t){ statusEl.textContent=t; }
+function setProg(t){ progText.textContent=t; }
+function cancelOCR(){
+  cancelled=true; setStatus('⏹ Membatalkan...');
+  if(activeWorker){ try{activeWorker.terminate();}catch(e){} }
+}
+function clearResults(){
+  results=[]; updateOutput();
+  setStatus('🗑 Hasil dihapus. Bila butuh lagi, buka 🕘 Riwayat.');
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const LEG={bubble:'legend_bubble',box:'legend_box',sfx:'legend_sfx',outside:'legend_outside'};
+function formatLine(r){
+  const p=S[LEG[r.type]];
+  return r.text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)
+          .map(x=>p+' : '+x).join('\n');
+}
+
+const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. Classify each text as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
+  fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
+function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
+function parseAI(txt){
+  let arr=null;
+  try{ arr=JSON.parse(txt); }
+  catch(e){ const m=txt.match(/\[[\s\S]*\]/); if(m){ try{arr=JSON.parse(m[0]);}catch(e2){} } }
+  if(!Array.isArray(arr)) throw new Error('Respons AI bukan JSON');
+  const out=[];
+  arr.forEach(it=>{
+    const text=String(it.text||it.t||'').trim(); if(!text) return;
+    let ty=String(it.type||'bubble').toLowerCase();
+    if(ty.includes('box')||ty.includes('square')||ty.includes('caption')||ty.includes('kotak')) ty='box';
+    else if(ty.includes('sfx')||ty.includes('sound')) ty='sfx';
+    else if(ty.includes('out')||ty.includes('narr')||ty.includes('luar')) ty='outside';
+    else ty='bubble';
+    out.push({text, type:ty, trusted:true});
+  });
+  return out;
+}
+const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
+async function geminiSlice(slice){
+  const b64=await blobToBase64(await canvasToBlob(slice));
+  const model=normGeminiModel(S.model);
+  const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
+  const mkBody=th=>JSON.stringify({
+    contents:[{parts:[{text:PROMPT},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
+    generationConfig:{temperature:0.2,responseMimeType:'application/json'},
+    safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
+  let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('OFF')});
+  if(r.status===400)
+    r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
+  if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,60)); }
+  const j=await r.json();
+  const blk=j.promptFeedback&&j.promptFeedback.blockReason;
+  const fin=j.candidates&&j.candidates[0]&&j.candidates[0].finishReason;
+  if(blk||(fin&&/SAFETY|PROHIBITED|BLOCKLIST|IMAGE_SAFETY/.test(fin)))
+    throw new Error('Filter Gemini menolak gambar — dialihkan');
+  calls.gemini++;
+  const txt=(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join('');
+  return parseAI(txt);
+}
+async function sumopodSlice(slice){
+  const b64=await blobToBase64(await canvasToBlob(slice));
+  const base=(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,'');
+  let url=base+'/chat/completions';
+  if(S.sumoCors) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  const r=await fetch(url,{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.sumoKey},
+    body:JSON.stringify({model:S.sumoModel||'gemini/gemini-3.5-flash-lite',temperature:0.2,
+      messages:[{role:'user',content:[{type:'text',text:PROMPT},
+        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+  if(!r.ok){ const t=await r.text(); throw new Error('Sumopod HTTP '+r.status+' '+t.slice(0,60)); }
+  calls.sumopod++;
+  const j=await r.json();
+  const txt=(((j.choices||[])[0]||{}).message||{}).content||'';
+  return parseAI(txt);
+}
+function cloudLang(){
+  if(S.langs.kor)return 'korean'; if(S.langs.jpn)return 'japanese';
+  if(S.langs.chi_sim)return 'chinesesimplified'; if(S.langs.ind)return 'indonesian';
+  return 'eng';
+}
+async function ocrSpaceSlice(slice){
+  const fd=new FormData();
+  fd.append('apikey',S.apiKey||'helloworld'); fd.append('language',cloudLang());
+  fd.append('isOverlayRequired','false'); fd.append('file',await canvasToBlob(slice),'s.jpg');
+  const r=await fetch('https://api.ocr.space/parse/image',{method:'POST',body:fd});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const j=await r.json();
+  if(j.IsErroredOnProcessing) throw new Error((j.ErrorMessage&&j.ErrorMessage[0])||'error API');
+  const txt=(j.ParsedResults&&j.ParsedResults[0]&&j.ParsedResults[0].ParsedText)||'';
+  return txt.split(/\r?\n/).map(t=>({text:t.trim(),confidence:null}));
+}
+async function makeWorker(langs,opts){
+  if(S.highAcc){
+    try{ return await Tesseract.createWorker(langs,1,Object.assign({},opts,{langPath:'https://tessdata.projectnaptha.com/4.0.0_best_int'})); }
+    catch(e){ setStatus('⚠ Model offline tinggi gagal, pakai standar...'); }
+  }
+  return await Tesseract.createWorker(langs,1,opts);
+}
+function loadImg(file){ return new Promise((res,rej)=>{
+  const url=URL.createObjectURL(file); const img=new Image();
+  img.onload=()=>{URL.revokeObjectURL(url);res(img);};
+  img.onerror=e=>{URL.revokeObjectURL(url);rej(e);};
+  img.src=url;
+});}
+async function prepareSlices(file,gem){
+  const img=await loadImg(file);
+  const ow=img.width, oh=img.height;
+  const sc = gem ? (ow>1280?1280/ow:1)
+               : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
+  const w=Math.round(ow*sc);
+  const sliceH = S.segOn ? S.segH : oh+1;
+  const srcSliceH=Math.floor(sliceH/sc);
+  const slices=[];
+  for(let sy=0; sy<oh; sy+=srcSliceH){
+    const sh=Math.min(srcSliceH,oh-sy), dh=Math.round(sh*sc);
+    const c=document.createElement('canvas'); c.width=w; c.height=dh;
+    const x=c.getContext('2d');
+    if(!gem){ try{ x.filter='grayscale(1) contrast(1.25)'; }catch(e){} }
+    x.drawImage(img,0,sy,ow,sh,0,0,w,dh);
+    slices.push(c);
+  }
+  return slices;
+}
+function letterRatio(t){
+  const ns=t.replace(/\s/g,''); if(!ns.length)return 0;
+  let L=0; try{L=(t.match(/\p{L}/gu)||[]).length;}catch(e){L=t.replace(/[^A-Za-z]/g,'').length;}
+  return L/ns.length;
+}
+function keepLine(l){
+  if(l.trusted) return true;
+  const t=(l.text||'').trim();
+  if(t.length<2) return false;
+  if(!S.confFilter) return true;
+  if(letterRatio(t)<0.6) return false;
+  if(l.confidence!=null&&l.confidence<60) return false;
+  return true;
+}
+const SFX_SET=new Set(['bam','boom','pow','crash','bang','don','doki','gogo','whoosh','thud','slam','krak','bzzz','zap','grrr','sigh','tap','knock','door','ring','beep','vroom','splash','thump','clank','swish','gulp','pant','huff']);
+function autoTag(t){
+  if(!t) return 'bubble';
+  const lat=t.replace(/[^A-Za-z]/g,'');
+  const upper=lat.length>0&&lat===lat.toUpperCase();
+  if(upper&&t.length<=12&&(lat.length<=5||SFX_SET.has(lat.toLowerCase()))) return 'sfx';
+  let n=0; try{n=(t.match(/[\uAC00-\uD7AF\u3040-\u30FF\u4E00-\u9FFF]/gu)||[]).length;}catch(e){}
+  if(n>=2&&n<=4&&!/[.?!…?,，。]$/.test(t)&&!/\s/.test(t)) return 'sfx';
+  return 'bubble';
+}
+
+async function runOCR(files){
+  results=[]; runNotes=[]; calls={gemini:0,sumopod:0}; updateOutput();
+  cancelled=false; processing=true;
+  pickBtn.disabled=true; refreshQueue();
+  progWrap.hidden=false;
+  setProg('Gambar 1/'+files.length+', menyiapkan...');
+
+  const q=[];
+  if(S.useGemini&&S.geminiKey) q.push('gemini');
+  if(S.useSumo&&S.sumoKey) q.push('sumopod');
+  let engine=q.length?q.shift():null;
+  let useCloud=S.cloud, worker=null;
+  const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
+  const opts={ logger:m=>{
+    if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
+    else if(m.status) setStatus('⏳ '+m.status+((m.progress&&m.progress<1)?' '+(m.progress*100|0)+'%':''));
+  }};
+  const engName=e=>e==='gemini'?'Gemini':'Sumopod';
+  try{
+    outer:
+    for(let b=0;b<files.length;b+=S.batch){
+      const batch=files.slice(b,b+S.batch);
+      for(let i=0;i<batch.length;i++){
+        if(cancelled) break outer;
+        const gi=b+i+1, before=results.length;
+        setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
+        try{
+          const slices=await prepareSlices(batch[i],!!engine);
+          for(let s=0;s<slices.length;s++){
+            if(cancelled) break outer;
+            setProg('Gambar '+gi+'/'+files.length+', segmen '+(s+1)+'/'+slices.length+
+                    (engine?' ('+engName(engine)+')':useCloud?' (cloud)':' (offline)'));
+            let lines=null, attempts=0;
+            while(engine&&!lines){
+              try{
+                if(engine==='gemini'){ lines=await geminiSlice(slices[s]); await sleep(4000); }
+                else { lines=await sumopodSlice(slices[s]); await sleep(200); }
+              }catch(e){
+                attempts++;
+                const netErr=/fetch|network|failed/i.test(e.message);
+                if(attempts===1&&netErr){ await sleep(1500); continue; }
+                if(engine==='gemini'&&/429/.test(e.message)){
+                  try{ setStatus('⏳ RPM Gemini penuh, menunggu 30s...'); await sleep(30000); lines=await geminiSlice(slices[s]); }
+                  catch(e2){ runNotes.push('Gemini: limit RPM'); engine=q.shift()||null; }
+                } else {
+                  runNotes.push(engName(engine)+': '+e.message.slice(0,60));
+                  setStatus('⚠ '+e.message+(q.length?' — ganti mesin...':''));
+                  engine=q.shift()||null;
+                }
+              }
+            }
+            if(!lines&&useCloud){
+              try{ lines=await ocrSpaceSlice(slices[s]); await sleep(1200); }
+              catch(e){ useCloud=false; runNotes.push('OCR.space: '+e.message.slice(0,40)); setStatus('⚠ Cloud gagal ('+e.message+'). Pindah offline...'); }
+            }
+            if(!lines){
+              if(!worker){ worker=await makeWorker(langs,opts); activeWorker=worker; }
+              const {data}=await worker.recognize(slices[s]);
+              lines=(data.lines||[]).map(l=>({text:l.text,confidence:l.confidence}));
+            }
+            lines.forEach(l=>{
+              const t=(l.text||'').trim();
+              if(!keepLine({text:t,confidence:l.confidence,trusted:l.trusted})) return;
+              results.push({text:t, type:l.trusted?l.type:autoTag(t), panel:gi});
+            });
+            updateOutput();
+          }
+          setStatus('✅ Gambar '+gi+' selesai (+'+(results.length-before)+' teks)');
+        }catch(e){
+          if(cancelled) break outer;
+          setStatus('❌ Gagal baca '+(batch[i].name||'gambar')+', dilewati: '+e.message);
+        }
+      }
+    }
+  }catch(err){ if(!cancelled) setStatus('❌ ERROR: '+err.message); }
+  finally{
+    if(worker){ try{worker.terminate();}catch(e){} }
+    activeWorker=null; processing=false;
+    progWrap.hidden=true; pickBtn.disabled=false; refreshQueue();
+    let msg;
+    if(cancelled) msg='⏹ Dibatalkan. Hasil sementara ditampilkan.';
+    else msg='✅ Selesai! Total '+results.length+' teks.';
+    msg+=' 📊 Panggilan AI: Gemini '+calls.gemini+' • Sumopod '+calls.sumopod+'.';
+    if(runNotes.length) msg+=' ⚠ '+runNotes.slice(0,2).join(' • ');
+    msg+=' (🕘 Riwayat tersimpan)';
+    setStatus(msg);
+    updateOutput();
+    if(results.length&&!cancelled) pushHist(outputBox.value);
+  }
+}
+
+function updateOutput(){
+  const has=results.length>0;
+  outTitle.hidden=!has; outputBox.hidden=!has; copyBtn.hidden=!has; btnHapus.hidden=!has;
+  if(!has){ outputBox.value=''; return; }
+  const L=[];
+  const names={bubble:'Bubble Bulat',box:'Bubble Kotak',sfx:'SFX',outside:'Luar Bubble'};
+  const incLines=Object.keys(S.inc).filter(k=>S.inc[k]);
+  if(incLines.length){ L.push('[Legend]'); incLines.forEach(k=>L.push(S[LEG[k]]+' = '+names[k])); L.push(''); }
+  let last=null;
+  results.forEach(r=>{
+    if(r.panel!==last){ if(last!==null)L.push(''); L.push('Panel '+r.panel); last=r.panel; }
+    L.push(formatLine(r));
+  });
+  outputBox.value=L.join('\n');
+}
+
+async function copyText(){
+  try{ await navigator.clipboard.writeText(outputBox.value); }
+  catch(e){ outputBox.select(); document.execCommand('copy'); }
+  copyBtn.textContent='✅ Tersalin!'; setTimeout(()=>copyBtn.textContent='📋 COPY SEMUA TEKS',1500);
+}
+setMode('bulk');
+showScreen('main');
+
+/* ===== PWA: daftar sebagai aplikasi ===== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>

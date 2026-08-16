@@ -99,13 +99,15 @@
   <div class="grid2">
     <label><input type="checkbox" id="useGemini" checked onchange="paintEngines()"> 🆓 Gemini</label>
     <label><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
+    <label><input type="checkbox" id="useGroq" onchange="paintEngines()"> 🌪 Groq</label>
   </div>
   <div class="hint">
     Resep:<br>
-    • <b>Manhwa biasa (hemat/gratis)</b>: Gemini ON, Sumopod OFF.<br>
-    • <b>Chapter smut</b>: DUA-DUANYA ON → Gemini dulu, segmen yang diblokir Google otomatis ditambal Sumopod.<br>
-    • <b>Mau ngebut</b>: Sumopod ON, Gemini OFF + Tinggi segmen 5000.<br>
-    • Dua-duanya OFF → mesin gratis (OCR.space / Tesseract offline).
+    • <b>Manhwa biasa (hemat/gratis)</b>: Gemini ON (+ Groq ON sebagai cadangan).<br>
+    • <b>Chapter smut</b>: Gemini + Sumopod ON → yang diblokir Google ditambal Sumopod.<br>
+    • <b>Mau ngebut</b>: Sumopod ON saja + Tinggi segmen 5000.<br>
+    • <b>Gemini limit</b>: otomatis turun ke Sumopod → Groq → OCR.space → offline.<br>
+    • Semua OFF → mesin gratis (OCR.space / Tesseract offline).
   </div>
 
   <div id="grpGemini">
@@ -127,6 +129,14 @@
     </div>
     <div class="hint">Centang hanya bila 🩺 Tes gagal dengan "Failed to fetch".</div>
     <button class="mini" onclick="testSumopod()">🩺 Tes Koneksi Sumopod</button>
+  </div>
+
+  <div id="grpGroq" hidden>
+    <fieldset><legend>🔑 API Key Groq (gratis)</legend><input id="setGroqKey" placeholder="gsk_..."></fieldset>
+    <div class="hint">Ambil gratis di <b>console.groq.com/keys</b>. Vision AI super cepat — cadangan terbaik saat Gemini limit (akurasi & penggabungan bubble sama seperti Gemini/Sumopod).</div>
+    <fieldset><legend>Model Groq</legend><input id="setGroqModel" value="meta-llama/llama-4-scout-17b-16e-instruct"></fieldset>
+    <div class="hint">Bila error model, coba: llama-3.2-90b-vision-preview</div>
+    <button class="mini" onclick="testGroq()">🩺 Tes Koneksi Groq</button>
   </div>
 
   <div class="grid2">
@@ -201,13 +211,14 @@ const screenMain=$('screen-main'), screenSettings=$('screen-settings'), screenHi
       progWrap=$('progWrap'), progText=$('progText'),
       queueBox=$('queueBox'), queueText=$('queueText'),
       processBtn=$('processBtn'), clearQueueBtn=$('clearQueueBtn'),
-      grpGemini=$('grpGemini'), grpSumo=$('grpSumo'), histList=$('histList');
+      grpGemini=$('grpGemini'), grpSumo=$('grpSumo'), grpGroq=$('grpGroq'), histList=$('histList');
 
 const DEF = {
   legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'"',
-  batch:5, useGemini:true, useSumo:false,
+  batch:5, useGemini:true, useSumo:false, useGroq:false,
   geminiKey:'', model:'gemini-2.5-flash',
   sumoKey:'', sumoModel:'gemini/gemini-3.5-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
+  groqKey:'', groqModel:'meta-llama/llama-4-scout-17b-16e-instruct',
   segOn:true, segH:3000,
   cloud:true, apiKey:'helloworld', highAcc:true, confFilter:true,
   inc:{bubble:true, box:true, sfx:true, outside:true},
@@ -215,7 +226,7 @@ const DEF = {
 };
 let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
     curScreen='main', pending=[], processing=false,
-    runNotes=[], calls={gemini:0,sumopod:0};
+    runNotes=[], calls={gemini:0,sumopod:0,groq:0};
 
 function loadSettings(){
   let raw={};
@@ -247,15 +258,17 @@ function goBack(){ if(curScreen==='settings') saveSettings(); else showScreen('m
 function paintEngines(){
   grpGemini.hidden = !chk('useGemini');
   grpSumo.hidden   = !chk('useSumo');
+  grpGroq.hidden   = !chk('useGroq');
 }
 function openSettings(){
   $('setBubble').value=S.legend_bubble; $('setBox').value=S.legend_box;
   $('setSfx').value=S.legend_sfx; $('setOutside').value=S.legend_outside;
   $('setBatch').value=S.batch;
-  $('useGemini').checked=S.useGemini; $('useSumo').checked=S.useSumo;
+  $('useGemini').checked=S.useGemini; $('useSumo').checked=S.useSumo; $('useGroq').checked=S.useGroq;
   $('setGeminiKey').value=S.geminiKey; $('setModel').value=S.model;
   $('setSumoKey').value=S.sumoKey; $('setSumoModel').value=S.sumoModel;
   $('setSumoBase').value=S.sumoBase; $('sumoCors').checked=S.sumoCors;
+  $('setGroqKey').value=S.groqKey; $('setGroqModel').value=S.groqModel;
   $('segOn').checked=S.segOn; $('setSegH').value=S.segH;
   $('cloud').checked=S.cloud; $('confFilter').checked=S.confFilter; $('highAcc').checked=S.highAcc;
   $('setKey').value=S.apiKey;
@@ -268,13 +281,14 @@ function openSettings(){
   showScreen('settings');
 }
 function saveSettings(){
-  S.useGemini=chk('useGemini'); S.useSumo=chk('useSumo');
+  S.useGemini=chk('useGemini'); S.useSumo=chk('useSumo'); S.useGroq=chk('useGroq');
   S.legend_bubble=val('setBubble','()'); S.legend_box=val('setBox','[]');
   S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','"');
   S.batch=Math.max(1,parseInt(val('setBatch','5'))||5);
   S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(val('setModel','gemini-2.5-flash'));
   S.sumoKey=val('setSumoKey',''); S.sumoModel=val('setSumoModel','gemini/gemini-3.5-flash-lite');
   S.sumoBase=val('setSumoBase','https://ai.sumopod.com/v1'); S.sumoCors=chk('sumoCors');
+  S.groqKey=val('setGroqKey',''); S.groqModel=val('setGroqModel','meta-llama/llama-4-scout-17b-16e-instruct');
   S.segOn=chk('segOn'); S.segH=Math.max(800,parseInt(val('setSegH','3000'))||3000);
   S.cloud=chk('cloud'); S.confFilter=chk('confFilter'); S.highAcc=chk('highAcc');
   S.apiKey=val('setKey','helloworld');
@@ -341,6 +355,19 @@ async function testSumopod(){
   }catch(e){
     alert('❌ Gagal terhubung: '+e.message+'\nKemungkinan API memblokir browser. Centang "Pakai proxy CORS" lalu tes lagi.');
   }
+}
+async function testGroq(){
+  const key=$('setGroqKey').value.trim(),
+        model=$('setGroqModel').value.trim()||'meta-llama/llama-4-scout-17b-16e-instruct';
+  if(!key){ alert('Isi API Key Groq dulu.'); return; }
+  try{
+    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:model,messages:[{role:'user',content:'ping'}]})});
+    const t=await r.text();
+    if(r.ok) alert('✅ Groq OK! Model "'+model+'" aktif.');
+    else alert('❌ Groq HTTP '+r.status+'\n'+t.slice(0,200)+'\n\n401 = key salah. 404 = ganti nama model.');
+  }catch(e){ alert('❌ Groq: '+e.message); }
 }
 
 const HIST_KEY='rigelocr_hist';
@@ -419,7 +446,6 @@ function unescapeAI(s){
           .replace(/\\"/g,'"').replace(/\\\\/g,'\\');
 }
 
-/* SATU BUBBLE = SATU KODE: baris dalam bubble yang sama digabung jadi kalimat utuh */
 function mergeBubbleEntries(arr){
   if(arr.length<=1) return arr;
   const out=[arr[0]];
@@ -436,7 +462,6 @@ function mergeBubbleEntries(arr){
   return out;
 }
 
-/* setiap entri = satu baris output dengan satu kode */
 function formatLine(r){
   const p=S[LEG[r.type]];
   return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
@@ -499,6 +524,19 @@ async function sumopodSlice(slice){
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
   if(!r.ok){ const t=await r.text(); throw new Error('Sumopod HTTP '+r.status+' '+t.slice(0,60)); }
   calls.sumopod++;
+  const j=await r.json();
+  const txt=(((j.choices||[])[0]||{}).message||{}).content||'';
+  return parseAI(txt);
+}
+async function groqSlice(slice){
+  const b64=await blobToBase64(await canvasToBlob(slice));
+  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.groqKey},
+    body:JSON.stringify({model:S.groqModel||'meta-llama/llama-4-scout-17b-16e-instruct',temperature:0.2,
+      messages:[{role:'user',content:[{type:'text',text:PROMPT},
+        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+  if(!r.ok){ const t=await r.text(); throw new Error('Groq HTTP '+r.status+' '+t.slice(0,60)); }
+  calls.groq++;
   const j=await r.json();
   const txt=(((j.choices||[])[0]||{}).message||{}).content||'';
   return parseAI(txt);
@@ -576,7 +614,7 @@ function autoTag(t){
 }
 
 async function runOCR(files){
-  results=[]; runNotes=[]; calls={gemini:0,sumopod:0}; updateOutput();
+  results=[]; runNotes=[]; calls={gemini:0,sumopod:0,groq:0}; updateOutput();
   cancelled=false; processing=true;
   pickBtn.disabled=true; refreshQueue();
   progWrap.hidden=false;
@@ -585,6 +623,7 @@ async function runOCR(files){
   const q=[];
   if(S.useGemini&&S.geminiKey) q.push('gemini');
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
+  if(S.useGroq&&S.groqKey) q.push('groq');
   let engine=q.length?q.shift():null;
   let useCloud=S.cloud, worker=null;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
@@ -592,7 +631,7 @@ async function runOCR(files){
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
     else if(m.status) setStatus('⏳ '+m.status+((m.progress&&m.progress<1)?' '+(m.progress*100|0)+'%':''));
   }};
-  const engName=e=>e==='gemini'?'Gemini':'Sumopod';
+  const engName=e=>e==='gemini'?'Gemini':(e==='sumopod'?'Sumopod':'Groq');
   try{
     outer:
     for(let b=0;b<files.length;b+=S.batch){
@@ -611,7 +650,8 @@ async function runOCR(files){
             while(engine&&!lines){
               try{
                 if(engine==='gemini'){ lines=await geminiSlice(slices[s]); await sleep(2500); }
-                else { lines=await sumopodSlice(slices[s]); await sleep(150); }
+                else if(engine==='sumopod'){ lines=await sumopodSlice(slices[s]); await sleep(150); }
+                else { lines=await groqSlice(slices[s]); await sleep(200); }
               }catch(e){
                 attempts++;
                 const netErr=/fetch|network|failed/i.test(e.message);
@@ -658,7 +698,7 @@ async function runOCR(files){
     let msg;
     if(cancelled) msg='⏹ Dibatalkan. Hasil sementara ditampilkan.';
     else msg='✅ Selesai! Total '+results.length+' teks.';
-    msg+=' 📊 Panggilan AI: Gemini '+calls.gemini+' • Sumopod '+calls.sumopod+'.';
+    msg+=' 📊 Panggilan AI: Gemini '+calls.gemini+' • Sumopod '+calls.sumopod+' • Groq '+calls.groq+'.';
     if(runNotes.length) msg+=' ⚠ '+runNotes.slice(0,2).join(' • ');
     msg+=' (🕘 Riwayat tersimpan)';
     setStatus(msg);

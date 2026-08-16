@@ -104,7 +104,7 @@
     Resep:<br>
     • <b>Manhwa biasa (hemat/gratis)</b>: Gemini ON, Sumopod OFF.<br>
     • <b>Chapter smut</b>: DUA-DUANYA ON → Gemini dulu, segmen yang diblokir Google otomatis ditambal Sumopod.<br>
-    • <b>Mau ngebut</b>: Sumopod ON, Gemini OFF.<br>
+    • <b>Mau ngebut</b>: Sumopod ON, Gemini OFF + Tinggi segmen 5000.<br>
     • Dua-duanya OFF → mesin gratis (OCR.space / Tesseract offline).
   </div>
 
@@ -419,14 +419,16 @@ function unescapeAI(s){
           .replace(/\\"/g,'"').replace(/\\\\/g,'\\');
 }
 
+/* SATU BUBBLE = SATU KODE: baris dalam bubble yang sama digabung jadi kalimat utuh */
 function mergeBubbleEntries(arr){
   if(arr.length<=1) return arr;
   const out=[arr[0]];
-  const endsWithTerminator = s => /[.!?…？！。、,\n]$/.test((s||'').trim());
+  const endsFinal = s => /[.!?…？！。]$/.test((s||'').trim());
   for(let i=1;i<arr.length;i++){
     const prev=out[out.length-1], cur=arr[i];
-    if(prev.type===cur.type && prev.panel===cur.panel && !endsWithTerminator(prev.text)){
-      prev.text = prev.text + '\n' + cur.text;
+    const mergeable=(prev.type==='bubble'||prev.type==='box');
+    if(mergeable && prev.type===cur.type && !endsFinal(prev.text)){
+      prev.text=(prev.text+' '+cur.text).replace(/\s+/g,' ');
     } else {
       out.push(cur);
     }
@@ -434,13 +436,13 @@ function mergeBubbleEntries(arr){
   return out;
 }
 
+/* setiap entri = satu baris output dengan satu kode */
 function formatLine(r){
   const p=S[LEG[r.type]];
-  return r.text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)
-          .map(x=>p+' : '+x).join('\n');
+  return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
 }
 
-const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple consecutive lines belong to the SAME speech bubble or caption box, merge them into a single entry with newlines in the text field — do NOT split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple visual lines belong to the SAME speech bubble or caption box, merge them into ONE entry and join the lines with single spaces so the text reads as one continuous sentence — never split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
 
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
@@ -608,8 +610,8 @@ async function runOCR(files){
             let lines=null, attempts=0;
             while(engine&&!lines){
               try{
-                if(engine==='gemini'){ lines=await geminiSlice(slices[s]); await sleep(4000); }
-                else { lines=await sumopodSlice(slices[s]); await sleep(200); }
+                if(engine==='gemini'){ lines=await geminiSlice(slices[s]); await sleep(2500); }
+                else { lines=await sumopodSlice(slices[s]); await sleep(150); }
               }catch(e){
                 attempts++;
                 const netErr=/fetch|network|failed/i.test(e.message);

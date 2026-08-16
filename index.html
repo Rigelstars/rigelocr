@@ -12,8 +12,7 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; color: #ffeef5;
-         background: linear-gradient(180deg,#33081f 0%,#8c1d4f 45%,#ff7ab0 100%);
-         min-height: 100vh; }
+         background: linear-gradient(180deg,#33081f 0%,#8c1d4f 45%,#ff7ab0 100%); min-height: 100vh; }
   header { background: #2b0714; padding: 16px 20px; display: flex;
            justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
   header h1 { margin: 0; font-size: 22px; color: #fff; }
@@ -151,22 +150,23 @@
   <button class="mini" onclick="backupData()">💾 Backup (salin kode)</button>
   <button class="mini" onclick="backupFile()">📦 Unduh file backup</button>
   <button class="mini" onclick="restoreData()">📥 Restore</button>
-  <div class="hint">Key API + pengaturan + riwayat tersimpan HANYA di HP-mu. Backup sesekali (simpan di Notes/Drive); bila ganti HP atau data terhapus, pulihkan lewat Restore. Tidak perlu login.</div>
+  <div class="hint">Key API + pengaturan + riwayat tersimpan HANYA di HP-mu. Backup sesekali; bila ganti HP atau data terhapus, pulihkan lewat Restore. Tidak perlu login.</div>
 
-  <h3>Custom Legend:</h3>
+  <h3>🎨 Custom Legend (kode output):</h3>
   <fieldset><legend>Bubble Bulat</legend><input id="setBubble" value="()"></fieldset>
   <fieldset><legend>Bubble Kotak</legend><input id="setBox" value="[]"></fieldset>
   <fieldset><legend>SFX</legend><input id="setSfx" value="//"></fieldset>
   <fieldset><legend>Luar Bubble</legend><input id="setOutside" value='"'></fieldset>
   <fieldset><legend>Batch Size</legend><input id="setBatch" type="number" value="5"></fieldset>
 
-  <h3>Sertakan Legend di Output:</h3>
+  <h3>🎚 Tampilkan di Output (filter):</h3>
   <div class="grid2">
-    <label><input type="checkbox" id="incBubble"> Bubble Bulat</label>
-    <label><input type="checkbox" id="incBox"> Bubble Kotak</label>
-    <label><input type="checkbox" id="incSfx"> SFX</label>
-    <label><input type="checkbox" id="incOutside"> Luar Bubble</label>
+    <label><input type="checkbox" id="incBubble" checked> Bubble Bulat</label>
+    <label><input type="checkbox" id="incBox" checked> Bubble Kotak</label>
+    <label><input type="checkbox" id="incSfx" checked> SFX</label>
+    <label><input type="checkbox" id="incOutside" checked> Luar Bubble</label>
   </div>
+  <div class="hint">Tipe yang <b>tidak dicentang</b> tidak muncul di hasil. Bisa diganti kapan saja tanpa re-OCR.</div>
 
   <h3>Bahasa (hanya mesin cadangan):</h3>
   <div class="grid2">
@@ -210,7 +210,7 @@ const DEF = {
   sumoKey:'', sumoModel:'gemini/gemini-3.5-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
   segOn:true, segH:3000,
   cloud:true, apiKey:'helloworld', highAcc:true, confFilter:true,
-  inc:{bubble:false, box:false, sfx:false, outside:false},
+  inc:{bubble:true, box:true, sfx:true, outside:true},
   langs:{eng:false, ind:false, jpn:false, kor:true, chi_sim:false}
 };
 let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
@@ -219,7 +219,7 @@ let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
 
 function loadSettings(){
   let raw={};
-  try{ raw=JSON.parse(localStorage.getItem('rigelocr_v8')||'{}'); }catch(e){}
+  try{ raw=JSON.parse(localStorage.getItem('rigelocr_v9')||'{}'); }catch(e){}
   const s=Object.assign({},DEF,raw);
   if(raw.provider==='sumopod'){ s.useSumo=true; s.useGemini=false; }
   return s;
@@ -227,12 +227,9 @@ function loadSettings(){
 const val=(id,d)=>($(id).value.trim()||d);
 const chk=id=>$(id).checked;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-
 function normGeminiModel(m){
-  m=(m||'').trim();
-  if(!m) return 'gemini-2.5-flash';
-  m=m.replace(/^models\//i,'');
-  if(m.includes('/')) m=m.split('/').pop();
+  m=(m||'').trim(); if(!m) return 'gemini-2.5-flash';
+  m=m.replace(/^models\//i,''); if(m.includes('/')) m=m.split('/').pop();
   return m||'gemini-2.5-flash';
 }
 function setSegPreset(v){ $('setSegH').value=v; }
@@ -284,11 +281,10 @@ function saveSettings(){
   S.inc={bubble:chk('incBubble'),box:chk('incBox'),sfx:chk('incSfx'),outside:chk('incOutside')};
   S.langs={eng:chk('langEng'),ind:chk('langInd'),jpn:chk('langJpn'),kor:chk('langKor'),chi_sim:chk('langChi')};
   if(!Object.values(S.langs).some(Boolean)) S.langs.eng=true;
-  localStorage.setItem('rigelocr_v8',JSON.stringify(S));
+  localStorage.setItem('rigelocr_v9',JSON.stringify(S));
   showScreen('main'); updateOutput();
 }
 
-/* ===== BACKUP & RESTORE ===== */
 function backupData(){
   const code='RIGELBACKUP:'+btoa(unescape(encodeURIComponent(JSON.stringify({settings:S,history:loadHist()}))));
   try{ navigator.clipboard.writeText(code); alert('✅ Kode backup tersalin!\nTempel & simpan di Notes/Drive.'); }
@@ -307,7 +303,7 @@ function restoreData(){
     let obj=null;
     if(inp.startsWith('RIGELBACKUP:')) obj=JSON.parse(decodeURIComponent(escape(atob(inp.slice(14)))));
     else obj=JSON.parse(inp);
-    if(obj.settings) localStorage.setItem('rigelocr_v8',JSON.stringify(obj.settings));
+    if(obj.settings) localStorage.setItem('rigelocr_v9',JSON.stringify(obj.settings));
     if(obj.history) localStorage.setItem(HIST_KEY,JSON.stringify(obj.history));
     alert('✅ Restore berhasil! Memuat ulang...');
     location.reload();
@@ -316,8 +312,7 @@ function restoreData(){
 
 async function testGemini(){
   const key=$('setGeminiKey').value.trim();
-  const model=normGeminiModel($('setModel').value);
-  $('setModel').value=model;
+  const model=normGeminiModel($('setModel').value); $('setModel').value=model;
   if(!key){ alert('Isi API Key Gemini dulu.'); return; }
   try{
     const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(key),
@@ -373,8 +368,7 @@ function restoreHist(i){
   const e=loadHist()[i]; if(!e) return;
   results=[]; updateOutput(); showScreen('main');
   outTitle.hidden=false; outputBox.hidden=false; copyBtn.hidden=false; btnHapus.hidden=false;
-  outputBox.value=e.text;
-  setStatus('♻ Hasil dipulihkan dari riwayat.');
+  outputBox.value=e.text; setStatus('♻ Hasil dipulihkan dari riwayat.');
 }
 function clearHist(){ localStorage.removeItem(HIST_KEY); renderHist(); }
 
@@ -390,7 +384,7 @@ function setMode(m){
 function pickImages(){ if(!processing) fileInput.click(); }
 fileInput.addEventListener('change',()=>{
   const f=Array.from(fileInput.files); fileInput.value='';
-  if(!f.length){ setStatus('⚠ Picker tidak mengembalikan gambar. Coba pilih lebih sedikit (5–10).'); return; }
+  if(!f.length){ setStatus('⚠ Picker tidak mengembalikan gambar.'); return; }
   pending=pending.concat(f); refreshQueue();
   setStatus('📥 +'+f.length+' gambar masuk antrean.');
 });
@@ -418,16 +412,40 @@ function clearResults(){
 }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 const LEG={bubble:'legend_bubble',box:'legend_box',sfx:'legend_sfx',outside:'legend_outside'};
+
+function unescapeAI(s){
+  if(typeof s!=='string') return '';
+  return s.replace(/\\n/g,'\n').replace(/\\r/g,'').replace(/\\t/g,'\t')
+          .replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+}
+
+function mergeBubbleEntries(arr){
+  if(arr.length<=1) return arr;
+  const out=[arr[0]];
+  const endsWithTerminator = s => /[.!?…？！。、,\n]$/.test((s||'').trim());
+  for(let i=1;i<arr.length;i++){
+    const prev=out[out.length-1], cur=arr[i];
+    if(prev.type===cur.type && prev.panel===cur.panel && !endsWithTerminator(prev.text)){
+      prev.text = prev.text + '\n' + cur.text;
+    } else {
+      out.push(cur);
+    }
+  }
+  return out;
+}
+
 function formatLine(r){
   const p=S[LEG[r.type]];
   return r.text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)
           .map(x=>p+' : '+x).join('\n');
 }
 
-const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. Classify each text as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple consecutive lines belong to the SAME speech bubble or caption box, merge them into a single entry with newlines in the text field — do NOT split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
+
 function parseAI(txt){
   let arr=null;
   try{ arr=JSON.parse(txt); }
@@ -435,7 +453,7 @@ function parseAI(txt){
   if(!Array.isArray(arr)) throw new Error('Respons AI bukan JSON');
   const out=[];
   arr.forEach(it=>{
-    const text=String(it.text||it.t||'').trim(); if(!text) return;
+    const text=unescapeAI(String(it.text||it.t||'')).trim(); if(!text) return;
     let ty=String(it.type||'bubble').toLowerCase();
     if(ty.includes('box')||ty.includes('square')||ty.includes('caption')||ty.includes('kotak')) ty='box';
     else if(ty.includes('sfx')||ty.includes('sound')) ty='sfx';
@@ -445,6 +463,7 @@ function parseAI(txt){
   });
   return out;
 }
+
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
 async function geminiSlice(slice){
   const b64=await blobToBase64(await canvasToBlob(slice));
@@ -455,8 +474,7 @@ async function geminiSlice(slice){
     generationConfig:{temperature:0.2,responseMimeType:'application/json'},
     safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
   let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('OFF')});
-  if(r.status===400)
-    r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
+  if(r.status===400) r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
   if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,60)); }
   const j=await r.json();
   const blk=j.promptFeedback&&j.promptFeedback.blockReason;
@@ -497,7 +515,7 @@ async function ocrSpaceSlice(slice){
   const j=await r.json();
   if(j.IsErroredOnProcessing) throw new Error((j.ErrorMessage&&j.ErrorMessage[0])||'error API');
   const txt=(j.ParsedResults&&j.ParsedResults[0]&&j.ParsedResults[0].ParsedText)||'';
-  return txt.split(/\r?\n/).map(t=>({text:t.trim(),confidence:null}));
+  return txt.split(/\r?\n/).map(t=>({text:unescapeAI(t.trim()),confidence:null}));
 }
 async function makeWorker(langs,opts){
   if(S.highAcc){
@@ -515,8 +533,7 @@ function loadImg(file){ return new Promise((res,rej)=>{
 async function prepareSlices(file,gem){
   const img=await loadImg(file);
   const ow=img.width, oh=img.height;
-  const sc = gem ? (ow>1280?1280/ow:1)
-               : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
+  const sc = gem ? (ow>1280?1280/ow:1) : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
   const w=Math.round(ow*sc);
   const sliceH = S.segOn ? S.segH : oh+1;
   const srcSliceH=Math.floor(sliceH/sc);
@@ -616,7 +633,8 @@ async function runOCR(files){
               const {data}=await worker.recognize(slices[s]);
               lines=(data.lines||[]).map(l=>({text:l.text,confidence:l.confidence}));
             }
-            lines.forEach(l=>{
+            const merged = mergeBubbleEntries(lines);
+            merged.forEach(l=>{
               const t=(l.text||'').trim();
               if(!keepLine({text:t,confidence:l.confidence,trusted:l.trusted})) return;
               results.push({text:t, type:l.trusted?l.type:autoTag(t), panel:gi});
@@ -653,10 +671,11 @@ function updateOutput(){
   if(!has){ outputBox.value=''; return; }
   const L=[];
   const names={bubble:'Bubble Bulat',box:'Bubble Kotak',sfx:'SFX',outside:'Luar Bubble'};
-  const incLines=Object.keys(S.inc).filter(k=>S.inc[k]);
-  if(incLines.length){ L.push('[Legend]'); incLines.forEach(k=>L.push(S[LEG[k]]+' = '+names[k])); L.push(''); }
+  const activeInc=Object.keys(S.inc).filter(k=>S.inc[k]);
+  if(activeInc.length){ L.push('[Legend]'); activeInc.forEach(k=>L.push(S[LEG[k]]+' = '+names[k])); L.push(''); }
   let last=null;
   results.forEach(r=>{
+    if(!S.inc[r.type]) return;
     if(r.panel!==last){ if(last!==null)L.push(''); L.push('Panel '+r.panel); last=r.panel; }
     L.push(formatLine(r));
   });
@@ -670,8 +689,6 @@ async function copyText(){
 }
 setMode('bulk');
 showScreen('main');
-
-/* ===== PWA: daftar sebagai aplikasi ===== */
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
 }

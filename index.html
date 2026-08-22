@@ -20,7 +20,7 @@
   main { padding: 20px; max-width: 700px; margin: auto; }
   .desc { font-size: 15px; line-height: 1.5; color: #ffdcec; }
   .seg { display: flex; margin: 18px 0; }
-  .seg button { flex: 1; padding: 14px 10px; font-size: 15px; cursor: pointer;
+  .seg button { flex: 1; padding: 13px 6px; font-size: 14px; cursor: pointer;
                 background: #3a0d24; color: #fff; border: 1px solid #c77ba4; }
   .seg button:first-child { border-radius: 8px 0 0 8px; }
   .seg button:last-child  { border-radius: 0 8px 8px 0; margin-left: -1px; }
@@ -29,6 +29,10 @@
              background: #ff4d94; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
              box-shadow: 0 4px 14px rgba(255,77,148,.4); }
   .primary:disabled { opacity: .45; }
+  .secondary { display: block; width: 100%; padding: 14px; border: none; border-radius: 999px;
+               background: #8c2f63; color: #ffeef5; font-size: 15px; font-weight: 700; cursor: pointer;
+               margin-top: 10px; }
+  .secondary:disabled { opacity: .45; }
   .danger { background: #7a1230; }
   .mini { padding: 10px 16px; border-radius: 10px; background: #a3265f; color: #fff;
           border: none; margin: 6px 8px 6px 0; font-size: 13px; font-weight: 700; cursor: pointer; }
@@ -71,15 +75,17 @@
     <button id="modeSingle" onclick="setMode('single')">Single</button>
     <button id="modeBulk" class="active" onclick="setMode('bulk')">✓ Bulk</button>
   </div>
-  <button id="pickBtn" class="primary" onclick="pickImages()">🖼 Pilih Gambar (masuk antrean)</button>
+  <button id="pickBtn" class="primary" onclick="pickImages('gal')">🖼 Pilih Gambar (Galeri/Foto)</button>
+  <button id="pickBtnFM" class="secondary" onclick="pickImages('fm')">📁 Pilih via File Manager (banyak)</button>
   <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  <input type="file" id="fileInputFM" multiple hidden>
 
   <div id="queueBox" hidden>
     <div id="queueText" class="hint" style="text-align:center;margin:12px 0"></div>
     <button id="processBtn" class="primary" onclick="startProcess()">▶ PROSES</button>
     <button id="clearQueueBtn" class="primary danger" style="margin-top:8px" onclick="clearQueue()">✖ Kosongkan Antrean</button>
   </div>
-  <div class="hint">Tips: bila picker macet saat memilih banyak sekaligus, pilih 5–10 gambar beberapa kali, lalu tekan ▶ PROSES.</div>
+  <div class="hint">📁 <b>File Manager</b>: bisa centang banyak gambar sekaligus. 🖼 <b>Galeri</b>: pilih dari foto. Pilihan bisa menumpuk — tekan ▶ PROSES kalau sudah lengkap.</div>
 
   <div id="progWrap" hidden>
     <div class="spinner"></div>
@@ -98,55 +104,70 @@
   <h3>🤖 Mesin Vision AI (sakelar):</h3>
   <div class="grid2">
     <label><input type="checkbox" id="useGemini" checked onchange="paintEngines()"> 🆓 Gemini</label>
-    <label><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
     <label><input type="checkbox" id="useGroq" onchange="paintEngines()"> 🌪 Groq</label>
+    <label><input type="checkbox" id="useMistral" onchange="paintEngines()"> 🌀 Mistral</label>
+    <label><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
+    <label><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
   </div>
   <div class="hint">
-    Resep:<br>
-    • <b>Manhwa biasa (hemat/gratis)</b>: Gemini ON (+ Groq ON sebagai cadangan).<br>
-    • <b>Chapter smut</b>: Gemini + Sumopod ON → yang diblokir Google ditambal Sumopod.<br>
-    • <b>Mau ngebut</b>: Sumopod ON saja + Tinggi segmen 5000.<br>
-    • <b>Gemini limit</b>: otomatis turun ke Sumopod → Groq → OCR.space → offline.<br>
-    • Semua OFF → mesin gratis (OCR.space / Tesseract offline).
+    Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>
+    • <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF.<br>
+    • <b>Smut</b>: tambah Sumopod ON (penambal akhir).<br>
+    • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.
   </div>
 
   <div id="grpGemini">
     <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
-    <div class="hint">Ambil gratis di <b>aistudio.google.com/api-keys</b>.</div>
+    <div class="hint">Gratis: <b>aistudio.google.com/api-keys</b></div>
     <fieldset><legend>Model Gemini</legend><input id="setModel" value="gemini-2.5-flash"></fieldset>
-    <div class="hint">Format Google tanpa prefix. Prefix "gemini/..." otomatis dibuang.</div>
-    <button class="mini" onclick="testGemini()">🩺 Tes Koneksi Gemini</button>
+    <button class="mini" onclick="testGemini()">🩺 Tes Gemini</button>
+  </div>
+
+  <div id="grpGroq" hidden>
+    <fieldset><legend>🔑 API Key Groq</legend><input id="setGroqKey" placeholder="gsk_..."></fieldset>
+    <div class="hint">Gratis: <b>console.groq.com/keys</b></div>
+    <fieldset><legend>Model Groq</legend><input id="setGroqModel" value="meta-llama/llama-4-maverick-17b-128e-instruct"></fieldset>
+    <div class="hint">Alternatif: meta-llama/llama-4-scout-17b-16e-instruct</div>
+    <button class="mini" onclick="testOC('groq')">🩺 Tes Groq</button>
+  </div>
+
+  <div id="grpMistral" hidden>
+    <fieldset><legend>🔑 API Key Mistral</legend><input id="setMistralKey" placeholder="..."></fieldset>
+    <div class="hint">Gratis: <b>console.mistral.ai/api-keys</b></div>
+    <fieldset><legend>Model Mistral</legend><input id="setMistralModel" value="pixtral-12b"></fieldset>
+    <button class="mini" onclick="testOC('mistral')">🩺 Tes Mistral</button>
+  </div>
+
+  <div id="grpOR" hidden>
+    <fieldset><legend>🔑 API Key OpenRouter</legend><input id="setORKey" placeholder="sk-or-..."></fieldset>
+    <div class="hint">Gratis: <b>openrouter.ai/keys</b></div>
+    <fieldset><legend>Model OpenRouter</legend><input id="setORModel" value="meta-llama/llama-3.2-11b-vision-instruct:free"></fieldset>
+    <button class="mini" onclick="testOC('openrouter')">🩺 Tes OpenRouter</button>
   </div>
 
   <div id="grpSumo" hidden>
     <fieldset><legend>🔑 Sumopod Token</legend><input id="setSumoKey" placeholder="sk-..."></fieldset>
-    <div class="hint">Buat key di <b>ai.sumopod.com</b> → tab AI → API Keys.</div>
+    <div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir).</div>
     <fieldset><legend>Model Sumopod</legend><input id="setSumoModel" value="gemini/gemini-3.5-flash-lite"></fieldset>
-    <div class="hint">Bila 404, coba: gemini/gemini-3-flash-preview / gemini/gemini-2.5-flash</div>
     <fieldset><legend>Base URL</legend><input id="setSumoBase" value="https://ai.sumopod.com/v1"></fieldset>
-    <div class="grid2">
-      <label><input type="checkbox" id="sumoCors"> Pakai proxy CORS</label>
-    </div>
-    <div class="hint">Centang hanya bila 🩺 Tes gagal dengan "Failed to fetch".</div>
-    <button class="mini" onclick="testSumopod()">🩺 Tes Koneksi Sumopod</button>
+    <div class="grid2"><label><input type="checkbox" id="sumoCors"> Pakai proxy CORS</label></div>
+    <button class="mini" onclick="testOC('sumopod')">🩺 Tes Sumopod</button>
   </div>
 
-  <div id="grpGroq" hidden>
-    <fieldset><legend>🔑 API Key Groq (gratis)</legend><input id="setGroqKey" placeholder="gsk_..."></fieldset>
-    <div class="hint">Ambil gratis di <b>console.groq.com/keys</b>. Vision AI super cepat — cadangan terbaik saat Gemini limit (akurasi & penggabungan bubble sama seperti Gemini/Sumopod).</div>
-    <fieldset><legend>Model Groq</legend><input id="setGroqModel" value="meta-llama/llama-4-scout-17b-16e-instruct"></fieldset>
-    <div class="hint">Bila error model, coba: llama-3.2-90b-vision-preview</div>
-    <button class="mini" onclick="testGroq()">🩺 Tes Koneksi Groq</button>
+  <h3>📖 Mode baca:</h3>
+  <div class="seg">
+    <button id="rtlOff" onclick="setRtl(false)">Manhwa/Manhua (kiri→kanan)</button>
+    <button id="rtlOn" onclick="setRtl(true)">Manga (kanan→kiri)</button>
   </div>
+  <div class="hint">Mode manga membuat AI mengurutkan panel & bubble dari kanan ke kiri.</div>
 
   <div class="grid2">
     <label><input type="checkbox" id="segOn" checked> Potong halaman panjang</label>
   </div>
   <fieldset><legend>Tinggi segmen (px)</legend><input id="setSegH" type="number" value="3000"></fieldset>
-  <button class="mini" onclick="setSegPreset(3000)">3000 (akurat)</button>
-  <button class="mini" onclick="setSegPreset(4000)">4000 (hemat)</button>
-  <button class="mini" onclick="setSegPreset(5000)">5000 (paling hemat)</button>
-  <div class="hint">Makin tinggi = makin sedikit potongan = makin sedikit panggilan API (cepat & murah).</div>
+  <button class="mini" onclick="setSegPreset(3000)">3000</button>
+  <button class="mini" onclick="setSegPreset(4000)">4000</button>
+  <button class="mini" onclick="setSegPreset(5000)">5000 (hemat)</button>
 
   <h3>⚙ Cadangan (bila tanpa key AI):</h3>
   <div class="grid2">
@@ -156,13 +177,12 @@
   </div>
   <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
 
-  <h3>🔐 Backup & Restore Data:</h3>
-  <button class="mini" onclick="backupData()">💾 Backup (salin kode)</button>
-  <button class="mini" onclick="backupFile()">📦 Unduh file backup</button>
+  <h3>🔐 Backup & Restore:</h3>
+  <button class="mini" onclick="backupData()">💾 Backup</button>
+  <button class="mini" onclick="backupFile()">📦 Unduh</button>
   <button class="mini" onclick="restoreData()">📥 Restore</button>
-  <div class="hint">Key API + pengaturan + riwayat tersimpan HANYA di HP-mu. Backup sesekali; bila ganti HP atau data terhapus, pulihkan lewat Restore. Tidak perlu login.</div>
 
-  <h3>🎨 Custom Legend (kode output):</h3>
+  <h3>🎨 Custom Legend:</h3>
   <fieldset><legend>Bubble Bulat</legend><input id="setBubble" value="()"></fieldset>
   <fieldset><legend>Bubble Kotak</legend><input id="setBox" value="[]"></fieldset>
   <fieldset><legend>SFX</legend><input id="setSfx" value="//"></fieldset>
@@ -176,9 +196,8 @@
     <label><input type="checkbox" id="incSfx" checked> SFX</label>
     <label><input type="checkbox" id="incOutside" checked> Luar Bubble</label>
   </div>
-  <div class="hint">Tipe yang <b>tidak dicentang</b> tidak muncul di hasil. Bisa diganti kapan saja tanpa re-OCR.</div>
 
-  <h3>Bahasa (hanya mesin cadangan):</h3>
+  <h3>Bahasa (mesin cadangan):</h3>
   <div class="grid2">
     <label><input type="checkbox" id="langEng"> Inggris</label>
     <label><input type="checkbox" id="langInd"> Indonesia</label>
@@ -192,116 +211,130 @@
 
 <main id="screen-history" hidden>
   <h3>🕘 Riwayat OCR</h3>
-  <div class="hint">10 hasil terakhir tersimpan otomatis. Ketuk "Pulihkan" bila hasil terhapus.</div>
+  <div class="hint">10 hasil terakhir tersimpan otomatis.</div>
   <div id="histList"></div>
   <button class="primary danger" style="max-width:260px;margin-top:16px" onclick="clearHist()">🗑 Bersihkan Riwayat</button>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
+window.addEventListener('beforeunload',e=>{ if(processing){ e.preventDefault(); e.returnValue=''; } });
 window.addEventListener('error', e=>{ setStatus('❌ JS: '+e.message); });
 window.addEventListener('unhandledrejection', e=>{ setStatus('❌ Async: '+(e.reason&&e.reason.message||e.reason)); });
 
 const $=id=>document.getElementById(id);
 const screenMain=$('screen-main'), screenSettings=$('screen-settings'), screenHistory=$('screen-history'),
       statusEl=$('status'), outTitle=$('outTitle'), outputBox=$('output'),
-      copyBtn=$('copyBtn'), btnHapus=$('btnHapus'), pickBtn=$('pickBtn'),
-      fileInput=$('fileInput'), modeSingle=$('modeSingle'), modeBulk=$('modeBulk'),
+      copyBtn=$('copyBtn'), btnHapus=$('btnHapus'), pickBtn=$('pickBtn'), pickBtnFM=$('pickBtnFM'),
+      fileInput=$('fileInput'), fileInputFM=$('fileInputFM'),
+      modeSingle=$('modeSingle'), modeBulk=$('modeBulk'),
       gearBtn=$('gearBtn'), backBtn=$('backBtn'), histBtn=$('histBtn'),
       progWrap=$('progWrap'), progText=$('progText'),
       queueBox=$('queueBox'), queueText=$('queueText'),
       processBtn=$('processBtn'), clearQueueBtn=$('clearQueueBtn'),
-      grpGemini=$('grpGemini'), grpSumo=$('grpSumo'), grpGroq=$('grpGroq'), histList=$('histList');
+      grpGemini=$('grpGemini'), grpSumo=$('grpSumo'), grpGroq=$('grpGroq'),
+      grpMistral=$('grpMistral'), grpOR=$('grpOR'), histList=$('histList'),
+      rtlOn=$('rtlOn'), rtlOff=$('rtlOff');
 
 const DEF = {
   legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'"',
-  batch:5, useGemini:true, useSumo:false, useGroq:false,
+  batch:5, rtl:false,
+  useGemini:true, useSumo:false, useGroq:false, useMistral:false, useOR:false,
   geminiKey:'', model:'gemini-2.5-flash',
   sumoKey:'', sumoModel:'gemini/gemini-3.5-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
-  groqKey:'', groqModel:'meta-llama/llama-4-scout-17b-16e-instruct',
+  groqKey:'', groqModel:'meta-llama/llama-4-maverick-17b-128e-instruct',
+  mistralKey:'', mistralModel:'pixtral-12b',
+  orKey:'', orModel:'meta-llama/llama-3.2-11b-vision-instruct:free',
   segOn:true, segH:3000,
   cloud:true, apiKey:'helloworld', highAcc:true, confFilter:true,
   inc:{bubble:true, box:true, sfx:true, outside:true},
   langs:{eng:false, ind:false, jpn:false, kor:true, chi_sim:false}
 };
 let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
-    curScreen='main', pending=[], processing=false,
-    runNotes=[], calls={gemini:0,sumopod:0,groq:0};
+    curScreen='main', pending=[], processing=false, runNotes=[], calls={},
+    pickTimer=null, lastFileList=null, activeInput=null;
 
 function loadSettings(){
   let raw={};
   try{ raw=JSON.parse(localStorage.getItem('rigelocr_v9')||'{}'); }catch(e){}
-  const s=Object.assign({},DEF,raw);
-  if(raw.provider==='sumopod'){ s.useSumo=true; s.useGemini=false; }
-  return s;
+  return Object.assign({},DEF,raw);
 }
-const val=(id,d)=>($(id).value.trim()||d);
-const chk=id=>$(id).checked;
+const val=(id,d)=>{const el=$(id); return el&&el.value.trim()?el.value.trim():d;};
+const chk=id=>{const el=$(id); return !!el&&el.checked;};
+const setChk=(id,v)=>{const el=$(id); if(el)el.checked=!!v;};
+const setVal=(id,v)=>{const el=$(id); if(el)el.value=v;};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function normGeminiModel(m){
   m=(m||'').trim(); if(!m) return 'gemini-2.5-flash';
   m=m.replace(/^models\//i,''); if(m.includes('/')) m=m.split('/').pop();
   return m||'gemini-2.5-flash';
 }
-function setSegPreset(v){ $('setSegH').value=v; }
+function setSegPreset(v){ setVal('setSegH',v); }
+function setRtl(v){ S.rtl=v; try{localStorage.setItem('rigelocr_v9',JSON.stringify(S));}catch(e){} paintRtl(); }
+function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
 
 function showScreen(name){
   curScreen=name;
-  screenMain.hidden = name!=='main';
-  screenSettings.hidden = name!=='settings';
-  screenHistory.hidden = name!=='history';
-  gearBtn.hidden = name!=='main';
-  histBtn.hidden = name!=='main';
-  backBtn.hidden = name==='main';
+  if(screenMain)screenMain.hidden = name!=='main';
+  if(screenSettings)screenSettings.hidden = name!=='settings';
+  if(screenHistory)screenHistory.hidden = name!=='history';
+  if(gearBtn)gearBtn.hidden = name!=='main';
+  if(histBtn)histBtn.hidden = name!=='main';
+  if(backBtn)backBtn.hidden = name==='main';
 }
 function goBack(){ if(curScreen==='settings') saveSettings(); else showScreen('main'); }
 function paintEngines(){
-  grpGemini.hidden = !chk('useGemini');
-  grpSumo.hidden   = !chk('useSumo');
-  grpGroq.hidden   = !chk('useGroq');
+  if(grpGemini)grpGemini.hidden=!chk('useGemini'); if(grpSumo)grpSumo.hidden=!chk('useSumo');
+  if(grpGroq)grpGroq.hidden=!chk('useGroq'); if(grpMistral)grpMistral.hidden=!chk('useMistral');
+  if(grpOR)grpOR.hidden=!chk('useOR');
 }
 function openSettings(){
-  $('setBubble').value=S.legend_bubble; $('setBox').value=S.legend_box;
-  $('setSfx').value=S.legend_sfx; $('setOutside').value=S.legend_outside;
-  $('setBatch').value=S.batch;
-  $('useGemini').checked=S.useGemini; $('useSumo').checked=S.useSumo; $('useGroq').checked=S.useGroq;
-  $('setGeminiKey').value=S.geminiKey; $('setModel').value=S.model;
-  $('setSumoKey').value=S.sumoKey; $('setSumoModel').value=S.sumoModel;
-  $('setSumoBase').value=S.sumoBase; $('sumoCors').checked=S.sumoCors;
-  $('setGroqKey').value=S.groqKey; $('setGroqModel').value=S.groqModel;
-  $('segOn').checked=S.segOn; $('setSegH').value=S.segH;
-  $('cloud').checked=S.cloud; $('confFilter').checked=S.confFilter; $('highAcc').checked=S.highAcc;
-  $('setKey').value=S.apiKey;
-  $('incBubble').checked=S.inc.bubble; $('incBox').checked=S.inc.box;
-  $('incSfx').checked=S.inc.sfx; $('incOutside').checked=S.inc.outside;
-  $('langEng').checked=S.langs.eng; $('langInd').checked=S.langs.ind;
-  $('langJpn').checked=S.langs.jpn; $('langKor').checked=S.langs.kor;
-  $('langChi').checked=S.langs.chi_sim;
-  paintEngines();
+  setVal('setBubble',S.legend_bubble); setVal('setBox',S.legend_box);
+  setVal('setSfx',S.legend_sfx); setVal('setOutside',S.legend_outside);
+  setVal('setBatch',S.batch);
+  setChk('useGemini',S.useGemini); setChk('useSumo',S.useSumo); setChk('useGroq',S.useGroq);
+  setChk('useMistral',S.useMistral); setChk('useOR',S.useOR);
+  setVal('setGeminiKey',S.geminiKey); setVal('setModel',S.model);
+  setVal('setSumoKey',S.sumoKey); setVal('setSumoModel',S.sumoModel);
+  setVal('setSumoBase',S.sumoBase); setChk('sumoCors',S.sumoCors);
+  setVal('setGroqKey',S.groqKey); setVal('setGroqModel',S.groqModel);
+  setVal('setMistralKey',S.mistralKey); setVal('setMistralModel',S.mistralModel);
+  setVal('setORKey',S.orKey); setVal('setORModel',S.orModel);
+  setChk('segOn',S.segOn); setVal('setSegH',S.segH);
+  setChk('cloud',S.cloud); setChk('confFilter',S.confFilter); setChk('highAcc',S.highAcc);
+  setVal('setKey',S.apiKey);
+  setChk('incBubble',S.inc.bubble); setChk('incBox',S.inc.box);
+  setChk('incSfx',S.inc.sfx); setChk('incOutside',S.inc.outside);
+  setChk('langEng',S.langs.eng); setChk('langInd',S.langs.ind); setChk('langJpn',S.langs.jpn);
+  setChk('langKor',S.langs.kor); setChk('langChi',S.langs.chi_sim);
+  paintEngines(); paintRtl();
   showScreen('settings');
 }
 function saveSettings(){
   S.useGemini=chk('useGemini'); S.useSumo=chk('useSumo'); S.useGroq=chk('useGroq');
+  S.useMistral=chk('useMistral'); S.useOR=chk('useOR');
   S.legend_bubble=val('setBubble','()'); S.legend_box=val('setBox','[]');
   S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','"');
   S.batch=Math.max(1,parseInt(val('setBatch','5'))||5);
   S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(val('setModel','gemini-2.5-flash'));
   S.sumoKey=val('setSumoKey',''); S.sumoModel=val('setSumoModel','gemini/gemini-3.5-flash-lite');
   S.sumoBase=val('setSumoBase','https://ai.sumopod.com/v1'); S.sumoCors=chk('sumoCors');
-  S.groqKey=val('setGroqKey',''); S.groqModel=val('setGroqModel','meta-llama/llama-4-scout-17b-16e-instruct');
+  S.groqKey=val('setGroqKey',''); S.groqModel=val('setGroqModel','meta-llama/llama-4-maverick-17b-128e-instruct');
+  S.mistralKey=val('setMistralKey',''); S.mistralModel=val('setMistralModel','pixtral-12b');
+  S.orKey=val('setORKey',''); S.orModel=val('setORModel','meta-llama/llama-3.2-11b-vision-instruct:free');
   S.segOn=chk('segOn'); S.segH=Math.max(800,parseInt(val('setSegH','3000'))||3000);
   S.cloud=chk('cloud'); S.confFilter=chk('confFilter'); S.highAcc=chk('highAcc');
   S.apiKey=val('setKey','helloworld');
   S.inc={bubble:chk('incBubble'),box:chk('incBox'),sfx:chk('incSfx'),outside:chk('incOutside')};
   S.langs={eng:chk('langEng'),ind:chk('langInd'),jpn:chk('langJpn'),kor:chk('langKor'),chi_sim:chk('langChi')};
   if(!Object.values(S.langs).some(Boolean)) S.langs.eng=true;
-  localStorage.setItem('rigelocr_v9',JSON.stringify(S));
+  try{localStorage.setItem('rigelocr_v9',JSON.stringify(S));}catch(e){}
   showScreen('main'); updateOutput();
 }
 
 function backupData(){
   const code='RIGELBACKUP:'+btoa(unescape(encodeURIComponent(JSON.stringify({settings:S,history:loadHist()}))));
-  try{ navigator.clipboard.writeText(code); alert('✅ Kode backup tersalin!\nTempel & simpan di Notes/Drive.'); }
+  try{ navigator.clipboard.writeText(code); alert('✅ Kode backup tersalin!'); }
   catch(e){ prompt('Salin kode backup ini:', code); }
 }
 function backupFile(){
@@ -314,60 +347,39 @@ function restoreData(){
   const inp=prompt('Tempel kode backup (RIGELBACKUP:...) atau isi file JSON:');
   if(!inp) return;
   try{
-    let obj=null;
-    if(inp.startsWith('RIGELBACKUP:')) obj=JSON.parse(decodeURIComponent(escape(atob(inp.slice(14)))));
-    else obj=JSON.parse(inp);
+    let obj=inp.startsWith('RIGELBACKUP:')?JSON.parse(decodeURIComponent(escape(atob(inp.slice(14))))):JSON.parse(inp);
     if(obj.settings) localStorage.setItem('rigelocr_v9',JSON.stringify(obj.settings));
     if(obj.history) localStorage.setItem(HIST_KEY,JSON.stringify(obj.history));
-    alert('✅ Restore berhasil! Memuat ulang...');
-    location.reload();
+    alert('✅ Restore berhasil! Memuat ulang...'); location.reload();
   }catch(e){ alert('❌ Kode backup tidak valid: '+e.message); }
 }
 
 async function testGemini(){
-  const key=$('setGeminiKey').value.trim();
-  const model=normGeminiModel($('setModel').value); $('setModel').value=model;
+  const key=val('setGeminiKey',''), model=normGeminiModel(val('setModel','gemini-2.5-flash'));
+  setVal('setModel',model);
   if(!key){ alert('Isi API Key Gemini dulu.'); return; }
   try{
     const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(key),
       {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'ping'}]}]})});
     const t=await r.text();
-    if(r.ok) alert('✅ Gemini OK! Model "'+model+'" valid.');
-    else if(/model name format|not found|INVALID_ARGUMENT/i.test(t))
-      alert('❌ Nama model tidak valid untuk Google.\nGanti dengan: gemini-2.5-flash (tanpa prefix "gemini/")');
-    else alert('❌ Gemini HTTP '+r.status+'\n'+t.slice(0,200));
+    if(r.ok) alert('✅ Gemini OK!');
+    else if(/model name format|not found|INVALID_ARGUMENT/i.test(t)) alert('❌ Model tidak valid. Pakai: gemini-2.5-flash');
+    else alert('❌ Gemini HTTP '+r.status+'\n'+t.slice(0,150));
   }catch(e){ alert('❌ Gemini: '+e.message); }
 }
-async function testSumopod(){
-  const key=$('setSumoKey').value.trim(),
-        model=$('setSumoModel').value.trim()||'gemini/gemini-3.5-flash-lite',
-        base=($('setSumoBase').value.trim()||'https://ai.sumopod.com/v1').replace(/\/+$/,'');
-  if(!key){ alert('Isi Sumopod Token dulu.'); return; }
-  let url=base+'/chat/completions';
-  if($('sumoCors').checked) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+async function testOC(name){
+  const cfg={groq:['setGroqKey','setGroqModel','https://api.groq.com/openai/v1'],
+    mistral:['setMistralKey','setMistralModel','https://api.mistral.ai/v1'],
+    openrouter:['setORKey','setORModel','https://openrouter.ai/api/v1'],
+    sumopod:['setSumoKey','setSumoModel',(val('setSumoBase','https://ai.sumopod.com/v1')).replace(/\/+$/,'')]}[name];
+  const key=val(cfg[0],''); if(!key){ alert('Isi key dulu.'); return; }
   try{
-    const r=await fetch(url,{method:'POST',
+    const r=await fetch(cfg[2]+'/chat/completions',{method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:model,messages:[{role:'user',content:'ping'}]})});
+      body:JSON.stringify({model:val(cfg[1],'x'),messages:[{role:'user',content:'ping'}]})});
     const t=await r.text();
-    if(r.ok) alert('✅ Sumopod OK! Model "'+model+'" aktif.');
-    else alert('❌ Sumopod HTTP '+r.status+'\n'+t.slice(0,200)+'\n\n401 = token/saldo. 404 = ganti nama model.');
-  }catch(e){
-    alert('❌ Gagal terhubung: '+e.message+'\nKemungkinan API memblokir browser. Centang "Pakai proxy CORS" lalu tes lagi.');
-  }
-}
-async function testGroq(){
-  const key=$('setGroqKey').value.trim(),
-        model=$('setGroqModel').value.trim()||'meta-llama/llama-4-scout-17b-16e-instruct';
-  if(!key){ alert('Isi API Key Groq dulu.'); return; }
-  try{
-    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:model,messages:[{role:'user',content:'ping'}]})});
-    const t=await r.text();
-    if(r.ok) alert('✅ Groq OK! Model "'+model+'" aktif.');
-    else alert('❌ Groq HTTP '+r.status+'\n'+t.slice(0,200)+'\n\n401 = key salah. 404 = ganti nama model.');
-  }catch(e){ alert('❌ Groq: '+e.message); }
+    alert(r.ok?('✅ '+name+' OK!'):('❌ '+name+' HTTP '+r.status+'\n'+t.slice(0,150)));
+  }catch(e){ alert('❌ '+name+': '+e.message); }
 }
 
 const HIST_KEY='rigelocr_hist';
@@ -375,11 +387,11 @@ function loadHist(){ try{ return JSON.parse(localStorage.getItem(HIST_KEY)||'[]'
 function pushHist(text){
   const h=loadHist(); h.unshift({ts:Date.now(),text:text});
   if(h.length>10) h.length=10;
-  localStorage.setItem(HIST_KEY,JSON.stringify(h));
+  try{localStorage.setItem(HIST_KEY,JSON.stringify(h));}catch(e){}
 }
 function openHistory(){ renderHist(); showScreen('history'); }
 function renderHist(){
-  const h=loadHist(); histList.innerHTML='';
+  const h=loadHist(); if(!histList)return; histList.innerHTML='';
   if(!h.length){ histList.innerHTML='<div class="hint">Riwayat kosong.</div>'; return; }
   h.forEach((e,i)=>{
     const prev=esc((e.text||'').split('\n').filter(Boolean).slice(0,3).join('  |  ')).slice(0,140);
@@ -405,16 +417,51 @@ function setMode(m){
   modeSingle.textContent=(m==='single'?'✓ ':'')+'Single';
   modeBulk.textContent=(m==='bulk'?'✓ ':'')+'Bulk';
   fileInput.multiple=(m==='bulk');
-  pickBtn.innerHTML=m==='bulk'?'🖼 Pilih Gambar (masuk antrean)':'🖼 Pilih 1 Gambar';
+  fileInputFM.multiple=(m==='bulk');
+  pickBtn.innerHTML=m==='bulk'?'🖼 Pilih Gambar (Galeri/Foto)':'🖼 Pilih 1 Gambar (Galeri)';
+  pickBtnFM.innerHTML=m==='bulk'?'📁 Pilih via File Manager (banyak)':'📁 Pilih 1 Gambar (File Manager)';
   if(m==='single'){ pending=[]; refreshQueue(); }
 }
-function pickImages(){ if(!processing) fileInput.click(); }
-fileInput.addEventListener('change',()=>{
-  const f=Array.from(fileInput.files); fileInput.value='';
-  if(!f.length){ setStatus('⚠ Picker tidak mengembalikan gambar.'); return; }
-  pending=pending.concat(f); refreshQueue();
-  setStatus('📥 +'+f.length+' gambar masuk antrean.');
+
+function isImageFile(f){
+  return (f.type&&f.type.indexOf('image/')===0) || /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(f.name||'');
+}
+function pickImages(src){
+  if(processing) return;
+  activeInput = (src==='fm')?fileInputFM:fileInput;
+  try{ activeInput.value=''; }catch(e){}
+  lastFileList=null;
+  activeInput.click();
+  let tries=0;
+  if(pickTimer) clearInterval(pickTimer);
+  pickTimer=setInterval(()=>{
+    tries++;
+    let n=0; try{ n=activeInput.files?activeInput.files.length:0; }catch(e){}
+    if(n>0){ clearInterval(pickTimer); pickTimer=null; onFilesPicked(); }
+    else if(tries>180){ clearInterval(pickTimer); pickTimer=null; }
+  },500);
+}
+function onFilesPicked(){
+  const inp=activeInput||fileInput;
+  let fl=null; try{ fl=inp.files; }catch(e){}
+  if(!fl||!fl.length) return;
+  if(fl===lastFileList) return;
+  lastFileList=fl;
+  try{
+    const imgs=Array.from(fl).filter(isImageFile);
+    if(!imgs.length){ setStatus('⚠ Tidak ada gambar di pilihan (file non-gambar diabaikan).'); return; }
+    const taken=imgs.slice(0,200);
+    pending=pending.concat(taken);
+    refreshQueue();
+    setStatus(imgs.length>200
+      ? '⚠ Maksimal 200 gambar/batch — masuk '+taken.length+'. Sisanya pilih lagi setelah ini.'
+      : '📥 +'+taken.length+' gambar masuk antrean.');
+  }catch(e){ setStatus('❌ Gagal membaca pilihan: '+e.message); }
+}
+[fileInput,fileInputFM].forEach(inp=>{
+  inp.addEventListener('change',()=>{ if(pickTimer){clearInterval(pickTimer);pickTimer=null;} onFilesPicked(); });
 });
+
 function refreshQueue(){
   queueBox.hidden = pending.length===0 || processing;
   queueText.textContent='📚 '+pending.length+' gambar dalam antrean';
@@ -427,16 +474,13 @@ function startProcess(){
   runOCR(files);
 }
 
-function setStatus(t){ statusEl.textContent=t; }
-function setProg(t){ progText.textContent=t; }
+function setStatus(t){ if(statusEl)statusEl.textContent=t; }
+function setProg(t){ if(progText)progText.textContent=t; }
 function cancelOCR(){
   cancelled=true; setStatus('⏹ Membatalkan...');
   if(activeWorker){ try{activeWorker.terminate();}catch(e){} }
 }
-function clearResults(){
-  results=[]; updateOutput();
-  setStatus('🗑 Hasil dihapus. Bila butuh lagi, buka 🕘 Riwayat.');
-}
+function clearResults(){ results=[]; updateOutput(); setStatus('🗑 Hasil dihapus. (🕘 Riwayat masih menyimpan)'); }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 const LEG={bubble:'legend_bubble',box:'legend_box',sfx:'legend_sfx',outside:'legend_outside'};
 
@@ -446,28 +490,52 @@ function unescapeAI(s){
           .replace(/\\"/g,'"').replace(/\\\\/g,'\\');
 }
 
+function clusterBoxes(items){
+  const out=[];
+  let cur=null;
+  items.forEach(it=>{
+    if(!it.text) return;
+    if(!cur){ cur={text:it.text,left:it.box.left,right:it.box.right,top:it.box.top,bottom:it.box.bottom};
+      out.push(cur); return; }
+    const gap=Math.max(0, Math.max(cur.top,it.box.top)-Math.min(cur.bottom,it.box.bottom));
+    const hOverlap=!(it.box.left>cur.right||it.box.right<cur.left);
+    const lineH=Math.max(10, it.box.bottom-it.box.top);
+    if(gap<=0.7*lineH&&hOverlap){
+      cur.text+=' '+it.text;
+      cur.top=Math.min(cur.top,it.box.top); cur.bottom=Math.max(cur.bottom,it.box.bottom);
+      cur.left=Math.min(cur.left,it.box.left); cur.right=Math.max(cur.right,it.box.right);
+    } else {
+      cur={text:it.text,left:it.box.left,right:it.box.right,top:it.box.top,bottom:it.box.bottom};
+      out.push(cur);
+    }
+  });
+  return out.map(c=>({text:c.text.replace(/\s+/g,' ').trim()}));
+}
+
 function mergeBubbleEntries(arr){
   if(arr.length<=1) return arr;
   const out=[arr[0]];
-  const endsFinal = s => /[.!?…？！。]$/.test((s||'').trim());
+  const endsFinal=s=>/[.!?…？！。]$/.test((s||'').trim());
   for(let i=1;i<arr.length;i++){
     const prev=out[out.length-1], cur=arr[i];
-    const mergeable=(prev.type==='bubble'||prev.type==='box');
-    if(mergeable && prev.type===cur.type && !endsFinal(prev.text)){
+    const sameType=prev.type===cur.type&&(prev.type==='bubble'||prev.type==='box');
+    if(sameType&&!endsFinal(prev.text)){
       prev.text=(prev.text+' '+cur.text).replace(/\s+/g,' ');
-    } else {
-      out.push(cur);
-    }
+    } else out.push(cur);
   }
   return out;
 }
-
 function formatLine(r){
   const p=S[LEG[r.type]];
   return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
 }
 
-const PROMPT='Extract ALL visible text from this comic/webtoon/manhwa image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple visual lines belong to the SAME speech bubble or caption box, merge them into ONE entry and join the lines with single spaces so the text reads as one continuous sentence — never split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+const PROMPT_BASE='Extract ALL visible text from this comic/webtoon/manhwa/manga image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple visual lines belong to the SAME speech bubble or caption box, merge them into ONE entry and join the lines with single spaces so the text reads as one continuous sentence — never split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+function buildPrompt(){
+  let p=PROMPT_BASE;
+  if(S.rtl) p+=' READING ORDER: this is a Japanese-style manga page — read panels and speech bubbles RIGHT-TO-LEFT (start from the top-right, move leftward), and output the entries in that exact order.';
+  return p;
+}
 
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
@@ -497,49 +565,42 @@ async function geminiSlice(slice){
   const model=normGeminiModel(S.model);
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
   const mkBody=th=>JSON.stringify({
-    contents:[{parts:[{text:PROMPT},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
+    contents:[{parts:[{text:buildPrompt()},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
     generationConfig:{temperature:0.2,responseMimeType:'application/json'},
     safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
   let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('OFF')});
   if(r.status===400) r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
-  if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,60)); }
+  if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,50)); }
   const j=await r.json();
   const blk=j.promptFeedback&&j.promptFeedback.blockReason;
   const fin=j.candidates&&j.candidates[0]&&j.candidates[0].finishReason;
   if(blk||(fin&&/SAFETY|PROHIBITED|BLOCKLIST|IMAGE_SAFETY/.test(fin)))
     throw new Error('Filter Gemini menolak gambar — dialihkan');
-  calls.gemini++;
+  calls.gemini=(calls.gemini||0)+1;
   const txt=(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join('');
   return parseAI(txt);
 }
-async function sumopodSlice(slice){
+const OC={
+  groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey},
+  mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey},
+  openrouter:{base:()=>'https://openrouter.ai/api/v1',model:()=>S.orModel,key:()=>S.orKey},
+  sumopod:{base:()=>(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,''),model:()=>S.sumoModel,key:()=>S.sumoKey,cors:()=>S.sumoCors}
+};
+async function ocSlice(name,slice){
+  const cfg=OC[name];
   const b64=await blobToBase64(await canvasToBlob(slice));
-  const base=(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,'');
-  let url=base+'/chat/completions';
-  if(S.sumoCors) url='https://corsproxy.io/?url='+encodeURIComponent(url);
-  const r=await fetch(url,{method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.sumoKey},
-    body:JSON.stringify({model:S.sumoModel||'gemini/gemini-3.5-flash-lite',temperature:0.2,
-      messages:[{role:'user',content:[{type:'text',text:PROMPT},
+  let url=cfg.base()+'/chat/completions';
+  if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
+  if(name==='openrouter') headers['X-Title']='Rigel OCR';
+  const r=await fetch(url,{method:'POST',headers,
+    body:JSON.stringify({model:cfg.model(),temperature:0.15,
+      messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
-  if(!r.ok){ const t=await r.text(); throw new Error('Sumopod HTTP '+r.status+' '+t.slice(0,60)); }
-  calls.sumopod++;
+  if(!r.ok){ const t=await r.text(); throw new Error(name+' HTTP '+r.status+' '+t.slice(0,50)); }
+  calls[name]=(calls[name]||0)+1;
   const j=await r.json();
-  const txt=(((j.choices||[])[0]||{}).message||{}).content||'';
-  return parseAI(txt);
-}
-async function groqSlice(slice){
-  const b64=await blobToBase64(await canvasToBlob(slice));
-  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.groqKey},
-    body:JSON.stringify({model:S.groqModel||'meta-llama/llama-4-scout-17b-16e-instruct',temperature:0.2,
-      messages:[{role:'user',content:[{type:'text',text:PROMPT},
-        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
-  if(!r.ok){ const t=await r.text(); throw new Error('Groq HTTP '+r.status+' '+t.slice(0,60)); }
-  calls.groq++;
-  const j=await r.json();
-  const txt=(((j.choices||[])[0]||{}).message||{}).content||'';
-  return parseAI(txt);
+  return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
 }
 function cloudLang(){
   if(S.langs.kor)return 'korean'; if(S.langs.jpn)return 'japanese';
@@ -548,14 +609,29 @@ function cloudLang(){
 }
 async function ocrSpaceSlice(slice){
   const fd=new FormData();
-  fd.append('apikey',S.apiKey||'helloworld'); fd.append('language',cloudLang());
-  fd.append('isOverlayRequired','false'); fd.append('file',await canvasToBlob(slice),'s.jpg');
+  fd.append('apikey',S.apiKey||'helloworld');
+  fd.append('language',cloudLang());
+  fd.append('isOverlayRequired','true');
+  fd.append('file',await canvasToBlob(slice),'s.jpg');
   const r=await fetch('https://api.ocr.space/parse/image',{method:'POST',body:fd});
   if(!r.ok) throw new Error('HTTP '+r.status);
   const j=await r.json();
   if(j.IsErroredOnProcessing) throw new Error((j.ErrorMessage&&j.ErrorMessage[0])||'error API');
-  const txt=(j.ParsedResults&&j.ParsedResults[0]&&j.ParsedResults[0].ParsedText)||'';
-  return txt.split(/\r?\n/).map(t=>({text:unescapeAI(t.trim()),confidence:null}));
+  const pr=(j.ParsedResults&&j.ParsedResults[0])||{};
+  const oLines=(pr.TextOverlay&&pr.TextOverlay.Lines)||[];
+  if(oLines.length){
+    const items=oLines.map(L=>{
+      const ws=L.Words||[];
+      const text=ws.map(w=>w.WordText).join(' ').trim();
+      let left=1e9,right=-1e9;
+      ws.forEach(w=>{ left=Math.min(left,w.Left); right=Math.max(right,w.Left+w.Width); });
+      if(left>right){left=0;right=1;}
+      return {text, box:{left,right,top:L.MinTop,bottom:L.MinTop+(L.MaxHeight||20)}};
+    }).filter(it=>it.text);
+    return clusterBoxes(items).map(t=>({text:t.text,confidence:null}));
+  }
+  const txt=pr.ParsedText||'';
+  return txt.split(/\r?\n/).map(t=>({text:unescapeAI(t.trim()),confidence:null})).filter(t=>t.text);
 }
 async function makeWorker(langs,opts){
   if(S.highAcc){
@@ -612,26 +688,28 @@ function autoTag(t){
   if(n>=2&&n<=4&&!/[.?!…?,，。]$/.test(t)&&!/\s/.test(t)) return 'sfx';
   return 'bubble';
 }
+const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
 async function runOCR(files){
-  results=[]; runNotes=[]; calls={gemini:0,sumopod:0,groq:0}; updateOutput();
+  results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
-  pickBtn.disabled=true; refreshQueue();
+  pickBtn.disabled=true; pickBtnFM.disabled=true; refreshQueue();
   progWrap.hidden=false;
   setProg('Gambar 1/'+files.length+', menyiapkan...');
 
   const q=[];
   if(S.useGemini&&S.geminiKey) q.push('gemini');
-  if(S.useSumo&&S.sumoKey) q.push('sumopod');
   if(S.useGroq&&S.groqKey) q.push('groq');
+  if(S.useMistral&&S.mistralKey) q.push('mistral');
+  if(S.useOR&&S.orKey) q.push('openrouter');
+  if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
-  let useCloud=S.cloud, worker=null;
+  let useCloud=S.cloud, tw=null;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
     else if(m.status) setStatus('⏳ '+m.status+((m.progress&&m.progress<1)?' '+(m.progress*100|0)+'%':''));
   }};
-  const engName=e=>e==='gemini'?'Gemini':(e==='sumopod'?'Sumopod':'Groq');
   try{
     outer:
     for(let b=0;b<files.length;b+=S.batch){
@@ -642,47 +720,64 @@ async function runOCR(files){
         setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
         try{
           const slices=await prepareSlices(batch[i],!!engine);
-          for(let s=0;s<slices.length;s++){
-            if(cancelled) break outer;
-            setProg('Gambar '+gi+'/'+files.length+', segmen '+(s+1)+'/'+slices.length+
-                    (engine?' ('+engName(engine)+')':useCloud?' (cloud)':' (offline)'));
-            let lines=null, attempts=0;
-            while(engine&&!lines){
+          const conc=(engine&&engine!=='gemini')?2:1;
+          const perSlice=new Array(slices.length);
+          let nextIdx=0;
+          const poolFn=async()=>{
+            while(!cancelled){
+              const si=nextIdx++; if(si>=slices.length) break;
               try{
-                if(engine==='gemini'){ lines=await geminiSlice(slices[s]); await sleep(2500); }
-                else if(engine==='sumopod'){ lines=await sumopodSlice(slices[s]); await sleep(150); }
-                else { lines=await groqSlice(slices[s]); await sleep(200); }
-              }catch(e){
-                attempts++;
-                const netErr=/fetch|network|failed/i.test(e.message);
-                if(attempts===1&&netErr){ await sleep(1500); continue; }
-                if(engine==='gemini'&&/429/.test(e.message)){
-                  try{ setStatus('⏳ RPM Gemini penuh, menunggu 30s...'); await sleep(30000); lines=await geminiSlice(slices[s]); }
-                  catch(e2){ runNotes.push('Gemini: limit RPM'); engine=q.shift()||null; }
-                } else {
-                  runNotes.push(engName(engine)+': '+e.message.slice(0,60));
-                  setStatus('⚠ '+e.message+(q.length?' — ganti mesin...':''));
-                  engine=q.shift()||null;
+                setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
+                        (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
+                let lines=null, attempts=0;
+                while(engine&&!lines){
+                  try{
+                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); await sleep(1500); }
+                    else { lines=await ocSlice(engine,slices[si]); await sleep(100); }
+                  }catch(e){
+                    attempts++;
+                    const netErr=/fetch|network|failed/i.test(e.message);
+                    if(attempts<=2&&netErr){ await sleep(1200); continue; }
+                    if(engine==='gemini'&&/429/.test(e.message)){
+                      try{ setStatus('⏳ RPM Gemini penuh, menunggu 20s...'); await sleep(20000); lines=await geminiSlice(slices[si]); }
+                      catch(e2){ runNotes.push('Gemini: limit'); engine=q.shift()||null; }
+                    } else {
+                      runNotes.push((ENG_NAMES[engine]||engine)+': '+e.message.slice(0,50));
+                      setStatus('⚠ '+e.message+(q.length?' — ganti mesin...':''));
+                      engine=q.shift()||null;
+                    }
+                  }
                 }
+                if(!lines&&useCloud){
+                  try{ lines=await ocrSpaceSlice(slices[si]); await sleep(800); }
+                  catch(e){ useCloud=false; runNotes.push('OCR.space: '+e.message.slice(0,40)); }
+                }
+                if(!lines){
+                  if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
+                  const {data}=await tw.recognize(slices[si]);
+                  const items=(data.lines||[]).map(l=>{
+                    const b=l.bbox||{x0:0,y0:0,x1:10,y1:10};
+                    return {text:(l.text||'').trim(), box:{left:b.x0,top:b.y0,right:b.x1,bottom:b.y1}};
+                  }).filter(it=>it.text);
+                  lines=clusterBoxes(items).map(t=>({text:t.text,confidence:null}));
+                }
+                perSlice[si]=mergeBubbleEntries(lines||[]);
+              }catch(eSlice){
+                /* segmen rusak → dilewati, proses TIDAK berhenti */
+                runNotes.push('Segmen '+(si+1)+' dilewati: '+String(eSlice&&eSlice.message||eSlice).slice(0,40));
+                perSlice[si]=[];
               }
             }
-            if(!lines&&useCloud){
-              try{ lines=await ocrSpaceSlice(slices[s]); await sleep(1200); }
-              catch(e){ useCloud=false; runNotes.push('OCR.space: '+e.message.slice(0,40)); setStatus('⚠ Cloud gagal ('+e.message+'). Pindah offline...'); }
-            }
-            if(!lines){
-              if(!worker){ worker=await makeWorker(langs,opts); activeWorker=worker; }
-              const {data}=await worker.recognize(slices[s]);
-              lines=(data.lines||[]).map(l=>({text:l.text,confidence:l.confidence}));
-            }
-            const merged = mergeBubbleEntries(lines);
-            merged.forEach(l=>{
+          };
+          await Promise.all(Array.from({length:conc},()=>poolFn()));
+          perSlice.forEach(arr=>{
+            (arr||[]).forEach(l=>{
               const t=(l.text||'').trim();
               if(!keepLine({text:t,confidence:l.confidence,trusted:l.trusted})) return;
               results.push({text:t, type:l.trusted?l.type:autoTag(t), panel:gi});
             });
-            updateOutput();
-          }
+          });
+          updateOutput();
           setStatus('✅ Gambar '+gi+' selesai (+'+(results.length-before)+' teks)');
         }catch(e){
           if(cancelled) break outer;
@@ -692,14 +787,13 @@ async function runOCR(files){
     }
   }catch(err){ if(!cancelled) setStatus('❌ ERROR: '+err.message); }
   finally{
-    if(worker){ try{worker.terminate();}catch(e){} }
+    if(tw){ try{tw.terminate();}catch(e){} }
     activeWorker=null; processing=false;
-    progWrap.hidden=true; pickBtn.disabled=false; refreshQueue();
-    let msg;
-    if(cancelled) msg='⏹ Dibatalkan. Hasil sementara ditampilkan.';
-    else msg='✅ Selesai! Total '+results.length+' teks.';
-    msg+=' 📊 Panggilan AI: Gemini '+calls.gemini+' • Sumopod '+calls.sumopod+' • Groq '+calls.groq+'.';
-    if(runNotes.length) msg+=' ⚠ '+runNotes.slice(0,2).join(' • ');
+    progWrap.hidden=true; pickBtn.disabled=false; pickBtnFM.disabled=false; refreshQueue();
+    let msg= cancelled?'⏹ Dibatalkan. Hasil sementara ditampilkan.':'✅ Selesai! Total '+results.length+' teks.';
+    const stat=Object.keys(calls).filter(k=>calls[k]).map(k=>(ENG_NAMES[k]||k)+' '+calls[k]).join(' • ');
+    if(stat) msg+=' 📊 '+stat+'.';
+    if(runNotes.length) msg+=' ⚠ '+runNotes.slice(0,3).join(' • ');
     msg+=' (🕘 Riwayat tersimpan)';
     setStatus(msg);
     updateOutput();
@@ -729,6 +823,7 @@ async function copyText(){
   catch(e){ outputBox.select(); document.execCommand('copy'); }
   copyBtn.textContent='✅ Tersalin!'; setTimeout(()=>copyBtn.textContent='📋 COPY SEMUA TEKS',1500);
 }
+
 setMode('bulk');
 showScreen('main');
 if('serviceWorker' in navigator){

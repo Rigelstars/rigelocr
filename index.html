@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga otomatis ≤14 permintaan/menit agar tidak cepat limit; bila tetap limit, tunggu 60s lalu coba lagi sampai 3x sebelum pindah mesin.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -278,7 +278,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <input type="text" id="man_sumo" hidden placeholder="Ketik ID model...">
 <fieldset><legend>Base URL</legend><input id="setSumoBase" value="https://ai.sumopod.com/v1"></fieldset>
 <div class="grid2"><label class="chk"><input type="checkbox" id="sumoCors"> Pakai proxy CORS</label></div>
-<button class="mini" onclick="testOC('sumopod')">🩺 Tes Sumopod</button>
+<button class="mini" onclick="testOC('sumo')">🩺 Tes Sumopod</button>
 </div>
 
 <h3>📖 Mode baca:</h3>
@@ -359,7 +359,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 window.addEventListener('beforeunload',e=>{ if(processing||translating){ e.preventDefault(); e.returnValue=''; } });
-window.addEventListener('error', e=>{ setStatus('❌ JS: '+e.message); });
+window.addEventListener('error', e=>{ if(e.message==='Script error.')return; setStatus('❌ JS: '+e.message); });
 window.addEventListener('unhandledrejection', e=>{ setStatus('❌ Async: '+(e.reason&&e.reason.message||e.reason)); });
 
 const $=id=>document.getElementById(id);
@@ -416,7 +416,6 @@ function setSegPreset(v){ setVal('setSegH',v); }
 function setRtl(v){ S.rtl=v; persist(); paintRtl(); }
 function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
 
-/* ===== pemilih model (dropdown + manual) ===== */
 function onModelSel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return; if(sel.value==='__manual'){ inp.hidden=false; inp.focus(); } else { inp.hidden=true; inp.value=sel.value; } }
 function getModel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return ''; if(sel.value==='__manual')return (inp&&inp.value||'').trim(); return sel.value; }
 function syncModelUI(engine){
@@ -426,17 +425,14 @@ function syncModelUI(engine){
   if(has){ sel.value=cur; inp.hidden=true; } else { sel.value='__manual'; inp.hidden=false; inp.value=cur||''; }
 }
 
-/* ===== TEMA (toolbar saja) ===== */
 const THEMES=[['pink','Pink'],['black','Black'],['grey','Grey'],['blue','Blue'],['purple','Purple'],['white','White']];
 function setTheme(t){ S.theme=t; persist(); document.body.setAttribute('data-theme',t==='pink'?'':t); updateThemeUI(); }
 function toggleThemeBar(){ $('themeBar').hidden=!$('themeBar').hidden; updateThemeUI(); }
 function updateThemeUI(){ const t=THEMES.find(x=>x[0]===S.theme); const el=$('themeLbl'); if(el&&t)el.textContent=t[1]; document.querySelectorAll('.sw').forEach(b=>b.classList.toggle('active',b.getAttribute('data-t')===S.theme)); }
 
-/* ===== MODE SMUT ===== */
 function setSmut(v){ S.smutMode=!!v; persist(); updateSmutHint(); }
 function updateSmutHint(){ const el=$('smutHint'); if(!el)return; el.textContent=S.smutMode?'ON: prompt diberi konteks fiksi profesional agar adegan dewasa tidak ditolak; Sumopod disarankan ON sebagai penambal.':'OFF: prompt standar versi lama. Aktifkan bila banyak adegan smut yang ditolak.'; }
 
-/* ===== TUR PANDUAN ===== */
 const TOUR=[
 {screen:'home',sel:'.hero-title',t:'Selamat datang 👋',b:'Rigel OCR mengambil & menerjemahkan teks komik. Ikuti panduan singkat ini, atau tekan "Lewati".'},
 {screen:'home',sel:'#themeBtn',t:'Ganti tema 🎨',b:'Ketuk ikon palet untuk memilih warna: pink, hitam, abu, biru, ungu, putih.'},
@@ -745,7 +741,6 @@ function formatLine(r){
   return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
 }
 
-/* ===== PROMPT = VERSI LAMA PERSIS (+ konteks fiksi HANYA saat Mode Smut ON) ===== */
 const FICTION='CONTEXT: This is a professionally published BL/drama/mature webtoon or manga — a work of FICTION with entirely fictional adult characters. Treat it as legitimate published comics material.';
 const PROMPT_BASE='Extract ALL visible text from this comic/webtoon/manhwa/manga image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple visual lines belong to the SAME speech bubble or caption box, merge them into ONE entry and join the lines with single spaces so the text reads as one continuous sentence — never split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
 function buildPrompt(){
@@ -758,6 +753,21 @@ function buildPrompt(){
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
+
+/* ===== PENJAGA LAJU GEMINI: maks 14 permintaan per 60 detik ===== */
+const geminiTimes=[];
+async function paceGemini(){
+  let now=Date.now();
+  while(geminiTimes.length && now-geminiTimes[0]>60000) geminiTimes.shift();
+  if(geminiTimes.length>=14){
+    const wait=60000-(Date.now()-geminiTimes[0])+300;
+    setStatus('⏳ Menjaga batas Gemini (≤14/menit), tunggu '+Math.ceil(wait/1000)+'s...');
+    await sleep(wait);
+    now=Date.now();
+    while(geminiTimes.length && now-geminiTimes[0]>60000) geminiTimes.shift();
+  }
+  geminiTimes.push(Date.now());
+}
 
 function parseAI(txt){
   let arr=null;
@@ -779,6 +789,7 @@ function parseAI(txt){
 
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
 async function geminiSlice(slice){
+  await paceGemini();
   const b64=await blobToBase64(await canvasToBlob(slice));
   const model=normGeminiModel(S.model);
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
@@ -908,7 +919,7 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
-/* ===== runOCR = VERSI LAMA PERSIS, TANPA DIUBAH ===== */
+/* ===== runOCR = VERSI LAMA + penjaga laju Gemini + backoff 429 lebih sabar ===== */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
@@ -923,7 +934,7 @@ async function runOCR(files){
   if(S.useOR&&S.orKey) q.push('openrouter');
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
-  let useCloud=S.cloud, tw=null;
+  let useCloud=S.cloud, tw=null, gemini429=0;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -951,15 +962,21 @@ async function runOCR(files){
                 let lines=null, attempts=0;
                 while(engine&&!lines){
                   try{
-                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); await sleep(1500); }
+                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); await sleep(1500); gemini429=0; }
                     else { lines=await ocSlice(engine,slices[si]); await sleep(100); }
                   }catch(e){
                     attempts++;
                     const netErr=/fetch|network|failed/i.test(e.message);
                     if(attempts<=2&&netErr){ await sleep(1200); continue; }
                     if(engine==='gemini'&&/429/.test(e.message)){
-                      try{ setStatus('⏳ RPM Gemini penuh, menunggu 20s...'); await sleep(20000); lines=await geminiSlice(slices[si]); }
-                      catch(e2){ runNotes.push('Gemini: limit'); engine=q.shift()||null; }
+                      gemini429++;
+                      if(gemini429<=3){
+                        setStatus('⏳ RPM Gemini penuh, menunggu 60s lalu coba lagi ('+gemini429+'/3)...');
+                        await sleep(60000);
+                        /* coba ulang segmen yang sama, jangan pindah mesin dulu */
+                      } else {
+                        runNotes.push('Gemini: limit'); engine=q.shift()||null; gemini429=0;
+                      }
                     } else {
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+e.message.slice(0,50));
                       setStatus('⚠ '+e.message+(q.length?' — ganti mesin...':''));
@@ -1042,7 +1059,6 @@ async function copyText(){
   setStatus('✅ Tersalin!'); setTimeout(()=>{setStatus('');},1500);
 }
 
-/* ===== TERJEMAHAN (fitur baru) ===== */
 function ocrToTrans(){ openTrans(outputBox.value); }
 function openTrans(prefill){ showScreen('trans'); if(prefill!==undefined)$('trInput').value=prefill; }
 function extractSource(txt){
@@ -1074,6 +1090,7 @@ function fixIndo(t){
 }
 async function callTextOnce(engine,prompt){
   if(engine==='gemini'){
+    await paceGemini();
     const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(normGeminiModel(S.model))+':generateContent?key='+encodeURIComponent(S.geminiKey);
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.2}})});
     if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,50)); }

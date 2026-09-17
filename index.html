@@ -169,7 +169,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <div class="hint">Gaul = nggak/kok/sih/dong/banget tapi tetap <b>aku-kau-kamu</b> (bukan lo-gue). Semi-formal = kata standar tanpa partikel slang.</div>
 <label>Panggilan khusus (opsional — kosongkan = otomatis)</label>
 <input type="text" id="trCall" placeholder="mis.: Kakak / Sayang / Haru ...">
-<label class="chk"><input type="checkbox" id="trIncOcr"> Sertakan OCR (asli + terjemahan bergantian)</label>
+<label class="chk"><input type="checkbox" id="trIncOcr" checked> Sertakan OCR (asli + terjemahan bergantian)</label>
 </div>
 <div style="background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--segB);margin-top:14px">
 <h3 style="margin:0 0 8px">Sumber teks</h3>
@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga otomatis ≤14 permintaan/menit agar tidak cepat limit; bila tetap limit, tunggu 60s lalu coba lagi sampai 3x sebelum pindah mesin.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga otomatis ≤14 permintaan/menit agar tidak cepat limit.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -337,8 +337,8 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 </main>
 
 <main id="screen-history" hidden>
-<h3>🕘 Riwayat OCR</h3>
-<div class="hint">50 hasil terakhir tersimpan otomatis.</div>
+<h3>🕘 Riwayat</h3>
+<div class="hint">50 hasil terakhir (OCR & terjemahan) tersimpan otomatis.</div>
 <div id="histList"></div>
 <button class="primary danger" style="max-width:260px;margin-top:16px" onclick="clearHist()">🗑 Bersihkan Riwayat</button>
 </main>
@@ -443,11 +443,11 @@ const TOUR=[
 {screen:'settings',sel:'#grpGemini',t:'Key Gemini 🆓',b:'Tempel key Gemini gratis (aistudio.google.com/api-keys) di kotak ini, pilih model lewat dropdown, lalu tekan "Simpan".'},
 {screen:'settings',sel:'#setSegH',t:'Potongan & kecepatan ✂️',b:'"Tinggi segmen" memotong halaman tinggi agar AI baca jelas. "Batch Size" = jumlah gambar per gelombang.'},
 {screen:'settings',sel:'#setBubble',t:'Kode bubble ✏️',b:'Atur kode output: () bubble, [] kotak, // SFX, " luar.'},
-{screen:'ocr',sel:'#histBtn',t:'Riwayat OCR 🕘',b:'Ketuk ikon jam untuk melihat & memulihkan 50 hasil OCR terakhir.'},
+{screen:'ocr',sel:'#histBtn',t:'Riwayat 🕘',b:'Ketuk ikon jam untuk melihat & memulihkan 50 hasil terakhir (OCR & terjemahan).'},
 {screen:'ocr',sel:'#ocrActions',t:'Hasil & aksi 📋',b:'Setelah selesai: Copy salin, Hapus bersihkan, Terjemahkan kirim ke layar terjemahan.'},
 {screen:'home',sel:'#transCard',t:'Terjemahan 🌐',b:'Di kartu ini kamu menerjemahkan hasil OCR dengan gaya formal / semi / gaul.'},
 {screen:'trans',sel:'#trStyle',t:'Gaya bahasa 🗣',b:'Pilih Formal, Semi-formal, atau Gaul (aku-kau, bukan lo-gue).'},
-{screen:'trans',sel:'#trInput',t:'Sumber teks 📝',b:'Tempel teks OCR di sini lalu tekan "TERJEMAHKAN". Selesai! 🎉 Ulang panduan kapan saja lewat ❓.'}
+{screen:'trans',sel:'#trInput',t:'Sumber teks 📝',b:'Tempel teks OCR di sini lalu tekan "TERJEMAHKAN". Semua baris (termasuk kode ") akan diterjemahkan. Selesai! 🎉'}
 ];
 function hideRevealed(){ revealed.forEach(id=>{const el=$(id); if(el)el.hidden=true;}); revealed=[]; }
 function showTour(i){
@@ -614,8 +614,11 @@ function renderHist(){
 }
 function restoreHist(i){
   const e=loadHist()[i]; if(!e) return;
-  results=[]; updateOutput(); showScreen('ocr');
-  outputBox.value=e.text; setStatus('♻ Hasil dipulihkan dari riwayat.');
+  results=[];
+  showScreen('ocr');
+  outTitle.hidden=false; outputBox.hidden=false; ocrActions.hidden=false;
+  outputBox.value=e.text;
+  setStatus('♻ Hasil dipulihkan dari riwayat.');
 }
 function clearHist(){ localStorage.removeItem(HIST_KEY); renderHist(); }
 
@@ -754,7 +757,6 @@ function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReade
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
 
-/* ===== PENJAGA LAJU GEMINI: maks 14 permintaan per 60 detik ===== */
 const geminiTimes=[];
 async function paceGemini(){
   let now=Date.now();
@@ -919,7 +921,6 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
-/* ===== runOCR = VERSI LAMA + penjaga laju Gemini + backoff 429 lebih sabar ===== */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
@@ -973,7 +974,6 @@ async function runOCR(files){
                       if(gemini429<=3){
                         setStatus('⏳ RPM Gemini penuh, menunggu 60s lalu coba lagi ('+gemini429+'/3)...');
                         await sleep(60000);
-                        /* coba ulang segmen yang sama, jangan pindah mesin dulu */
                       } else {
                         runNotes.push('Gemini: limit'); engine=q.shift()||null; gemini429=0;
                       }
@@ -1073,14 +1073,22 @@ function extractSource(txt){
   return out;
 }
 function buildStyleBlock(style){
-  if(style==='formal')return 'FORMAL: fully standard/baku Indonesian. Use "tidak", "sudah", "sangat", "apakah", complete polite sentences. NO slang, NO contractions, NO particles (kok/sih/dong/banget).';
-  if(style==='semi')return 'SEMI-FORMAL: standard vocabulary ("tidak", "sudah", "aku", "kau/kamu") with smooth natural flow. Absolutely NO slang contractions (nggak/gak/udah) and NO particles (kok/sih/dong/banget).';
-  return 'GAUL (casual): colloquial Indonesian using contractions and particles: "nggak/gak", "kok", "sih", "dong", "banget", "udah", "tapi", "jadi". Pronouns MUST stay "aku / kau / kamu" — NEVER "lo / gue / elu". Tone like spoken comic dialogue.';
+  if(style==='formal')return 'FORMAL: standard/baku Indonesian, polite and complete sentences, but still natural for comics (not stiff/legalistic). Use "tidak", "sudah", "aku", "kau/kamu". NO slang contractions, NO particles (kok/sih/dong/banget).';
+  if(style==='semi')return 'SEMI-FORMAL: everyday polite Indonesian, smooth and natural like real speech. Use "tidak", "sudah", "aku", "kau/kamu". Absolutely NO slang contractions (nggak/gak/udah) and NO particles (kok/sih/dong/banget).';
+  return 'GAUL (casual): natural spoken Indonesian like real comic dialogue. Use contractions and particles: "nggak/gak", "kok", "sih", "dong", "banget", "udah", "tapi", "jadi". Pronouns MUST stay "aku / kau / kamu" — NEVER "lo / gue / elu". Sound like friends talking, not like a textbook.';
 }
-const NATURAL='NATURALNESS: produce natural, idiomatic, easy-to-understand Indonesian. Prefer common everyday terms over literal/clinical phrasing. Examples: "self-pleasure"/"engage in self-pleasure" → "masturbasi"; "make love" → "bercinta"; "intercourse" → "bersetubuh"; "climax" → "klimaks". Never output awkward literal phrases like "kenikmatan mandiri".\nORTHOGRAPHY: attach enclitics -ku, -mu, -nya to the preceding word (write "tuanku", "hatiku", "olehmu" — NEVER "tuan ku", "hati ku", "oleh mu"). Write prefixes di-/ke- and particles correctly per standard Indonesian.';
+const NATURAL='NATURALNESS & CORRECTNESS: produce fluent, idiomatic Indonesian that reads like a real published comic translation. Every word must be a real, correctly-spelled Indonesian word (NO typos, NO half-translated mix, NO leftover source-language words). Prefer common everyday phrasing over literal/clinical translation (e.g. "self-pleasure" → "masturbasi", "make love" → "bercinta"). Keep sentences short and punchy like comic dialogue.\nPRONOUN ATTACHMENT: attach enclitics -ku/-mu/-nya to the preceding word (write "untukmu", "padamu", "olehmu", "darimu", "kepadamu", "bersamamu", "tanpamu", "tuanku", "hatiku" — NEVER "untuk kau", "pada kau", "oleh kau", "dari kau", "tuan ku", "hati ku"). Use "kau/kamu/aku" as standalone subject/object only when natural.';
 function fixIndo(t){
   if(!t)return t;
   let s=t;
+  s=s.replace(/\buntuk kau\b/gi,'untukmu');
+  s=s.replace(/\bpada kau\b/gi,'padamu');
+  s=s.replace(/\boleh kau\b/gi,'olehmu');
+  s=s.replace(/\bdari kau\b/gi,'darimu');
+  s=s.replace(/\bkepada kau\b/gi,'kepadamu');
+  s=s.replace(/\bbersama kau\b/gi,'bersamamu');
+  s=s.replace(/\btanpa kau\b/gi,'tanpamu');
+  s=s.replace(/\bmenuju kau\b/gi,'menujumu');
   s=s.replace(/([A-Za-z])\s+(ku|mu|nya)\b/g,'$1$2');
   s=s.replace(/\bke pada\b/gi,'kepada');
   s=s.replace(/\bdi sebabkan\b/gi,'disebabkan');
@@ -1109,6 +1117,16 @@ async function callTextOnce(engine,prompt){
   const j=await r.json();
   return ((((j.choices||[])[0]||{}).message||{}).content||'');
 }
+function parseNumbered(raw){
+  const map={}; 
+  (raw||'').split(/\r?\n/).forEach(ln=>{
+    const m=ln.match(/^\s*(\d+)\s*[.)\-:]\s*(\S+)\s*:\s*(.+?)\s*$/);
+    if(m){ map[+m[1]]={code:m[2],text:m[3]}; return; }
+    const m2=ln.match(/^\s*(\d+)\s*[.)\-:]\s*(.+?)\s*$/);
+    if(m2){ map[+m[1]]={code:null,text:m2[2]}; }
+  });
+  return map;
+}
 async function runTranslate(){
   const src=$('trInput').value;
   const items=extractSource(src);
@@ -1128,29 +1146,37 @@ async function runTranslate(){
   const inc=$('trIncOcr').checked;
   const numbered=translatable.map((l,i)=>(i+1)+'. '+l.code+' : '+l.text).join('\n');
   const styleBlock=buildStyleBlock(style);
-  const example='EXAMPLE of the SAME source line "Don\'t you want to relax here? It\'s fine.":\n- GAUL: "kau nggak mau santai di sini? nggak apa-apa kok."\n- SEMI-FORMAL: "kau tidak mau santai di sini? tidak apa-apa."\n- FORMAL: "tidakkah kau ingin bersantai di sini? tidak apa-apa."\nBAD: "AKU BERTANYA, APA KAU MELAKUKAN KENIKMATAN MANDIRI?"  GOOD: "aku bertanya, apa kau masturbasi?"';
+  const example='EXAMPLE source line: " () : DID YOU PLEASURE YOURSELF WHILE I WAS GONE?"\n- GAUL output: "() : kau masturbasi tadi waktu aku pergi?"\n- SEMI output: "() : kau masturbasi saat aku pergi?"\n- FORMAL output: "() : apakah kau masturbasi saat aku pergi?"';
   const smutLine=S.smutMode?' The source may contain mature/intimate themes from mature published comics; translate faithfully without censoring or moralizing.':'';
-  const prompt=FICTION+' You are a professional translator of comics/webtoons (Korean/Japanese/Chinese/English) into Indonesian.\n\nSOURCE LINES (numbered, each "code : text"):\n'+numbered+'\n\nSTYLE REQUIRED: '+styleBlock+'\n'+NATURAL+'\n'+example+'\nApply ONLY the requested style above.\n'+(call?('ADDRESS TERM: when a speaker addresses/refers to a partner or love interest using honorifics (oppa/hyung/noona/unnie/seonbae/etc.) or names, render it exactly as "'+call+'". '):'')+
-  'This is fictional adult content: translate sexual/explicit lines faithfully, without censoring, refusing, or moralizing. Keep meaning, tone, intensity.'+smutLine+'\nSPELLING: produce clean, correct Indonesian with NO typos, no missing letters, no stray characters.\nDo NOT add, merge, split, or reorder lines. Preserve the code symbol and " : " prefix on each output line.\n\nOUTPUT FORMAT (strict), one per source number:\n1. <kode> : <terjemahan>\n2. <kode> : <terjemahan>\nOutput ONLY these numbered lines. Nothing else.';
+  const basePrompt=FICTION+' You are a professional comic translator into Indonesian.\n\nSOURCE LINES (numbered, each "N. code : text"). Translate EVERY numbered line, including codes like ( ), [ ], //, and " (outside/narration). Do NOT skip any line.\n'+numbered+'\n\nSTYLE: '+styleBlock+'\n'+NATURAL+'\n'+example+'\n'+(call?('ADDRESS TERM: render honorifics (oppa/hyung/noona/unnie/seonbae/etc.) or names exactly as "'+call+'". '):'')+
+  'This is fictional adult content: translate sexual/explicit lines faithfully without censoring.'+smutLine+'\nOUTPUT FORMAT (strict), one line per source number, preserving the code symbol: N. <kode> : <terjemahan>. Output ONLY these lines.';
   let done=false,lastErr=null;
   const translationByNum={};
   for(const eng of q){
     if(transCancel)break;
     setTrStatus('🌐 Menerjemahkan via '+(ENG_NAMES[eng]||eng)+'...');
     let success=false;
-    for(let a=0;a<2;a++){
+    for(let a=0;a<2 && !success;a++){
       try{
-        const finalPrompt=a===0?prompt:prompt+'\n\nREMINDER: OUTPUT MUST BE EXACTLY NUMBERED LINES "N. code : translation". NO OTHER TEXT.';
+        const finalPrompt=a===0?basePrompt:basePrompt+'\n\nREMINDER: translate ALL lines including code " lines. Output ONLY numbered lines "N. code : translation".';
         const raw=await callTextOnce(eng,finalPrompt);
-        const map={}; let hit=0;
-        raw.split(/\r?\n/).forEach(ln=>{
-          const m=ln.match(/^\s*(\d+)\s*[.)\-:]\s*(\S+)\s*:\s*(.+?)\s*$/);
-          if(m){ map[+m[1]]={code:m[2],text:m[3]}; hit++; return; }
-          const m2=ln.match(/^\s*(\d+)\s*[.)\-:]\s*(.+?)\s*$/);
-          if(m2&&+m2[1]<=translatable.length){ map[+m2[1]]={code:translatable[+m2[1]-1].code,text:m2[2]}; hit++; }
-        });
-        if(hit>=Math.ceil(translatable.length*0.7)){ Object.assign(translationByNum,map); success=true; break; }
-        lastErr=new Error('Respons tidak punya cukup baris bernomor ('+hit+'/'+translatable.length+')');
+        const map=parseNumbered(raw);
+        Object.keys(map).forEach(k=>{ const n=+k; if(n>=1&&n<=translatable.length){ const code=map[n].code||translatable[n-1].code; translationByNum[n]={code:code,text:map[n].text}; } });
+        const filled=Object.keys(translationByNum).length;
+        if(filled>0){
+          // pass kedua untuk baris yang masih bolong
+          const missing=[]; for(let n=1;n<=translatable.length;n++){ if(!translationByNum[n]) missing.push(n); }
+          if(missing.length){
+            const sub=missing.map((n,k)=>(k+1)+'. '+translatable[n-1].code+' : '+translatable[n-1].text).join('\n');
+            try{
+              const raw2=await callTextOnce(eng,'Translate ONLY these lines into Indonesian. Output ONLY lines "N. <kode> : <terjemahan>" with N starting at 1.\nSTYLE: '+styleBlock+'\n'+NATURAL+'\n'+sub);
+              const map2=parseNumbered(raw2);
+              missing.forEach((origIdx,k)=>{ const t=map2[k+1]; if(t&&t.text) translationByNum[origIdx]={code:t.code||translatable[origIdx-1].code,text:t.text}; });
+            }catch(e2){}
+          }
+          success=Object.keys(translationByNum).length>0;
+        }
+        if(!success) lastErr=new Error('Respons tidak punya baris bernomor');
       }catch(e){ lastErr=e; setTrStatus('⚠ '+(ENG_NAMES[eng]||eng)+': '+String(e&&e.message||e).slice(0,60)+' — coba mesin lain.'); }
     }
     if(success){done=true;break;}
@@ -1159,17 +1185,24 @@ async function runTranslate(){
   $('trProg').hidden=true;
   if(transCancel){ setTrStatus('⏹ Dibatalkan.'); return; }
   if(!done){ setTrStatus('❌ Gagal menerjemahkan: '+String(lastErr&&lastErr.message||'semua mesin gagal')); return; }
-  const out=[]; let idx=0;
+  const out=[]; 
   items.forEach(it=>{
     if(it.type==='panel'){ out.push(it.orig); }
-    else if(it.type==='line'){ idx++; const tr=translationByNum[idx]; const trText=fixIndo(tr?tr.text:it.text); const code=tr&&tr.code?tr.code:it.code; if(inc){ out.push(it.code+' : '+it.text); out.push(code+' : '+trText); } else { out.push(code+' : '+trText); } }
+    else if(it.type==='line'){
+      const idx=items.filter(x=>x.type==='line').indexOf(it)+1;
+      const tr=translationByNum[idx];
+      const trText=fixIndo(tr&&tr.text?tr.text:it.text);
+      const code=(tr&&tr.code)||it.code;
+      if(inc){ out.push(it.code+' : '+it.text); out.push(code+' : '+trText); }
+      else{ out.push(code+' : '+trText); }
+    }
     else if(it.type==='blank'){ out.push(''); }
     else if(it.type==='meta'){}
     else{ out.push(it.orig); }
   });
   $('trOutput').value=out.filter((l,i,a)=>!(l===''&&i>0&&a[i-1]==='')).join('\n');
   $('trOutput').hidden=false; $('trActions').hidden=false;
-  setTrStatus('✅ Terjemahan selesai ('+idx+' baris).');
+  setTrStatus('✅ Terjemahan selesai ('+Object.keys(translationByNum).length+'/'+translatable.length+' baris).');
   pushHist($('trOutput').value);
 }
 async function copyTrans(){

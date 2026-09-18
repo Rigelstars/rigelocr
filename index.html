@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga ≤14/menit; bila 503/429 ditunggu & dicoba ulang sebelum pindah mesin.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: error sementara (429/500/jeda) ditunggu & dicoba ulang sampai 4× sebelum pindah — selama saldo ada, Sumopod tetap dipakai, tidak kabur ke offline.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -277,7 +277,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 </select>
 <input type="text" id="man_sumo" hidden placeholder="Ketik ID model...">
 <fieldset><legend>Base URL</legend><input id="setSumoBase" value="https://ai.sumopod.com/v1"></fieldset>
-<div class="grid2"><label class="chk"><input type="checkbox" id="sumoCors"> Pakai proxy CORS</label></div>
+<div class="grid2"><label class="chk"><input type="checkbox" id="sumoCors"> Paksa proxy CORS</label></div>
 <button class="mini" onclick="testOC('sumo')">🩺 Tes Sumopod</button>
 </div>
 
@@ -727,7 +727,6 @@ function clusterBoxes(items){
   return out.map(c=>({text:c.text.replace(/\s+/g,' ').trim()}));
 }
 
-/* gabung baris yang TERPISAH dari satu bubble; JANGAN gabung dua bubble penuh */
 function mergeBubbleEntries(arr){
   if(arr.length<=1) return arr;
   const out=[arr[0]];
@@ -747,7 +746,6 @@ function formatLine(r){
   return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
 }
 
-/* ===== PROMPT OCR DIPERKETAT: anti-halu, transkripsi persis, pemisahan bubble benar ===== */
 const FICTION='CONTEXT: This is a professionally published BL/drama/mature webtoon or manga — a work of FICTION with entirely fictional adult characters. Treat it as legitimate published comics material.';
 const PROMPT_BASE='You are a precise comic OCR engine. Transcribe ALL visible text in this comic/webtoon/manhwa/manga page EXACTLY as drawn, character by character. STRICT RULES: (a) Transcribe ONLY text that is visibly present; NEVER invent, guess, autocomplete, fix spelling, or add text that is not actually drawn; if a region is unreadable, skip it entirely. (b) Each physically separate speech bubble / caption box / SFX cluster = exactly ONE entry; two different bubbles must NEVER be merged into one entry; one single bubble must NEVER be split into multiple entries. (c) If one bubble contains several visual lines, join those lines with single spaces inside that ONE entry. (d) Read in correct reading order (top-to-bottom then left-to-right for manhwa/manhua; right-to-left for manga) and output entries in that order. (e) Classify each entry as exactly one type: "bubble" (round/oval speech bubble), "box" (rectangular caption box), "sfx" (sound-effect/moan lettering), "outside" (any other text outside bubbles/boxes, e.g. narrator notes, "to be continued"). (f) Keep the original language exactly; do NOT translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}].';
 function buildPrompt(){
@@ -832,24 +830,30 @@ async function ocSlice(name,slice){
   const cfg=OC[name];
   const b64=await blobToBase64(await canvasToBlob(slice,0.85));
   let url=cfg.base()+'/chat/completions';
-  if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  const alreadyProxy=!!(cfg.cors&&cfg.cors());
+  if(alreadyProxy) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(name==='openrouter') headers['X-Title']='Rigel OCR';
   const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
   let lastErr=null;
   for(const mm of models){
-    try{
-      const r=await fetch(url,{method:'POST',headers,
-        body:JSON.stringify({model:mm,temperature:0.1,
-          messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
-            {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
-      if(!r.ok){ const t=await r.text(); lastErr=new Error(name+' HTTP '+r.status+' '+t.slice(0,50));
-        if(/401|403/.test(String(r.status))) throw lastErr;
-        continue; }
-      calls[name]=(calls[name]||0)+1;
-      const j=await r.json();
-      return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
-    }catch(e){ lastErr=e; if(/401|403/.test(String(e.message||''))) throw e; }
+    const body=JSON.stringify({model:mm,temperature:0.1,
+      messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
+        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]});
+    let r;
+    try{ r=await fetch(url,{method:'POST',headers,body}); }
+    catch(e){
+      // error jaringan/CORS → coba lewat proxy CORS otomatis (sekali)
+      if(alreadyProxy){ lastErr=e; continue; }
+      try{ r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{method:'POST',headers,body}); }
+      catch(e2){ lastErr=e2; continue; }
+    }
+    if(!r.ok){ const t=await r.text(); lastErr=new Error(name+' HTTP '+r.status+' '+t.slice(0,50));
+      if(/401|403/.test(String(r.status))) throw lastErr;
+      continue; }
+    calls[name]=(calls[name]||0)+1;
+    const j=await r.json();
+    return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
   }
   throw lastErr||new Error(name+' gagal');
 }
@@ -898,7 +902,6 @@ function loadImg(file){ return new Promise((res,rej)=>{
   img.onerror=e=>{URL.revokeObjectURL(url);rej(e);};
   img.src=url;
 });}
-/* resolusi dinaikkan ke 1568px agar pembacaan teks lebih akurat (kurang salah baca) */
 async function prepareSlices(file,gem){
   const img=await loadImg(file);
   const ow=img.width, oh=img.height;
@@ -958,6 +961,7 @@ async function runOCR(files){
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
   let useCloud=S.cloud, tw=null, geminiRetry=0;
+  const engineRetry={};
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -980,29 +984,43 @@ async function runOCR(files){
             while(!cancelled){
               const si=nextIdx++; if(si>=slices.length) break;
               try{
-                setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
-                        (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
-                let lines=null, attempts=0;
+                let lines=null, shrink=false, transientRetry=0;
                 while(engine&&!lines){
+                  const useSlice = shrink? fitCanvas(slices[si],900) : slices[si];
+                  setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
+                          (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
                   try{
-                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); geminiRetry=0; }
-                    else { lines=await ocSlice(engine,slices[si]); }
+                    if(engine==='gemini'){ lines=await geminiSlice(useSlice); geminiRetry=0; }
+                    else { lines=await ocSlice(engine,useSlice); }
                   }catch(e){
-                    attempts++;
                     const msg=String(e&&e.message||e);
-                    const netErr=/fetch|network|failed/i.test(msg);
-                    if(attempts<=2&&netErr){ await sleep(800); continue; }
-                    if(engine==='gemini'&&/429|503/.test(msg)){
-                      geminiRetry++;
-                      if(geminiRetry<=3){
-                        setStatus('⏳ Gemini sibuk/limit (429/503), tunggu 15s lalu coba lagi ('+geminiRetry+'/3)...');
-                        await sleep(15000);
-                      } else { runNotes.push('Gemini: limit'); engine=q.shift()||null; geminiRetry=0; }
-                    } else {
+                    const auth=/401|403|invalid api key|unauthorized/i.test(msg);
+                    const transient=/429|500|502|503|timeout|network|failed|fetch/i.test(msg);
+                    if(auth){
+                      runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
+                      setStatus('⚠ '+(ENG_NAMES[engine]||engine)+' key ditolak — ganti mesin...');
+                      engine=q.shift()||null; shrink=false; transientRetry=0; continue;
+                    }
+                    if(transient){
+                      const paid=(engine==='sumopod');
+                      const maxR=paid?4:2;
+                      if(transientRetry<maxR){
+                        transientRetry++;
+                        setStatus('⏳ '+(ENG_NAMES[engine]||engine)+' sibuk/jeda jaringan, tunggu '+(paid?10:5)+'s ('+transientRetry+'/'+maxR+')...');
+                        await sleep(paid?10000:5000);
+                        continue;
+                      }
+                      transientRetry=0;
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
                       setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
-                      engine=q.shift()||null;
+                      engine=q.shift()||null; shrink=false; continue;
                     }
+                    // error parse / lain: coba sekali dengan gambar diperkecil, lalu ganti mesin
+                    if(!shrink){ shrink=true; continue; }
+                    shrink=false;
+                    runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
+                    setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
+                    engine=q.shift()||null; continue;
                   }
                 }
                 if(!lines&&useCloud){
@@ -1133,18 +1151,24 @@ async function callTextOnce(engine,prompt){
   }
   const cfg=OC[engine];
   let url=cfg.base()+'/chat/completions';
-  if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  const alreadyProxy=!!(cfg.cors&&cfg.cors());
+  if(alreadyProxy) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(engine==='openrouter') headers['X-Title']='Rigel OCR';
   const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
   let lastErr=null;
   for(const mm of models){
-    try{
-      const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model:mm,temperature:0.2,messages:[{role:'user',content:prompt}]})});
-      if(!r.ok){ lastErr=new Error(engine+' HTTP '+r.status); if(/401|403/.test(String(r.status)))throw lastErr; continue; }
-      const j=await r.json();
-      return ((((j.choices||[])[0]||{}).message||{}).content||'');
-    }catch(e){ lastErr=e; if(/401|403/.test(String(e.message||'')))throw e; }
+    const body=JSON.stringify({model:mm,temperature:0.2,messages:[{role:'user',content:prompt}]});
+    let r;
+    try{ r=await fetch(url,{method:'POST',headers,body}); }
+    catch(e){
+      if(alreadyProxy){ lastErr=e; continue; }
+      try{ r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{method:'POST',headers,body}); }
+      catch(e2){ lastErr=e2; continue; }
+    }
+    if(!r.ok){ lastErr=new Error(engine+' HTTP '+r.status); if(/401|403/.test(String(r.status)))throw lastErr; continue; }
+    const j=await r.json();
+    return ((((j.choices||[])[0]||{}).message||{}).content||'');
   }
   throw lastErr||new Error(engine+' gagal');
 }

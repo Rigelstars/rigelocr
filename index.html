@@ -163,10 +163,10 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label>Gaya bahasa</label>
 <select id="trStyle">
 <option value="formal">Formal (baku, sopan)</option>
-<option value="semi">Semi-formal (santai sopan)</option>
-<option value="gaul" selected>Gaul (santai komik, aku-kau)</option>
+<option value="semi" selected>Semi-formal (santai sopan)</option>
+<option value="gaul">Gaul (santai komik, aku-kau)</option>
 </select>
-<div class="hint">Gaul = nggak/kok/sih/dong/banget tapi tetap <b>aku-kau-kamu</b> (bukan lo-gue). Semi-formal = kata standar tanpa partikel slang.</div>
+<div class="hint">Semi-formal & formal: tanpa nggak/kok/sih, padanan KBBI. Gaul: boleh nggak/kok/sih tapi tetap aku-kau (bukan lo-gue). Panggilan (gege/hyung/unnie/noona/duke dll) TIDAK dilokalkan. Terjemahan non-Inggris otomatis CAPSLOCK.</div>
 <label>Panggilan khusus (opsional — kosongkan = otomatis)</label>
 <input type="text" id="trCall" placeholder="mis.: Kakak / Sayang / Haru ...">
 <label class="chk"><input type="checkbox" id="trIncOcr" checked> Sertakan OCR (asli + terjemahan bergantian)</label>
@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga otomatis ≤14 permintaan/menit agar tidak cepat limit.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• Gemini dijaga ≤14/menit; bila 503/429 ditunggu & dicoba ulang sebelum pindah mesin.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -265,7 +265,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 
 <div id="grpSumo" hidden>
 <fieldset><legend>🔑 Sumopod Token</legend><input id="setSumoKey" placeholder="sk-..."></fieldset>
-<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir).</div>
+<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir & tercepat).</div>
 <label>Model Sumopod</label>
 <select id="sel_sumo" onchange="onModelSel('sumo')">
 <option value="gemini/gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (default)</option>
@@ -303,6 +303,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="highAcc" checked> Model offline tinggi</label>
 </div>
 <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
+<div class="hint">OCR offline diberi batas waktu 90s per segmen agar tidak stuck; bila lewat, segmen dilewati & hasil yang sudah ada tetap dikirim.</div>
 
 <h3>🔐 Backup & Restore:</h3>
 <button class="mini" onclick="backupData()">💾 Backup</button>
@@ -431,7 +432,7 @@ function toggleThemeBar(){ $('themeBar').hidden=!$('themeBar').hidden; updateThe
 function updateThemeUI(){ const t=THEMES.find(x=>x[0]===S.theme); const el=$('themeLbl'); if(el&&t)el.textContent=t[1]; document.querySelectorAll('.sw').forEach(b=>b.classList.toggle('active',b.getAttribute('data-t')===S.theme)); }
 
 function setSmut(v){ S.smutMode=!!v; persist(); updateSmutHint(); }
-function updateSmutHint(){ const el=$('smutHint'); if(!el)return; el.textContent=S.smutMode?'ON: prompt diberi konteks fiksi profesional agar adegan dewasa tidak ditolak; Sumopod disarankan ON sebagai penambal.':'OFF: prompt standar versi lama. Aktifkan bila banyak adegan smut yang ditolak.'; }
+function updateSmutHint(){ const el=$('smutHint'); if(!el)return; el.textContent=S.smutMode?'ON: prompt diberi konteks fiksi profesional agar adegan dewasa tidak ditolak; Sumopod disarankan ON sebagai penambal.':'OFF: prompt standar. Aktifkan bila banyak adegan smut yang ditolak.'; }
 
 const TOUR=[
 {screen:'home',sel:'.hero-title',t:'Selamat datang 👋',b:'Rigel OCR mengambil & menerjemahkan teks komik. Ikuti panduan singkat ini, atau tekan "Lewati".'},
@@ -446,8 +447,8 @@ const TOUR=[
 {screen:'ocr',sel:'#histBtn',t:'Riwayat 🕘',b:'Ketuk ikon jam untuk melihat & memulihkan 50 hasil terakhir (OCR & terjemahan).'},
 {screen:'ocr',sel:'#ocrActions',t:'Hasil & aksi 📋',b:'Setelah selesai: Copy salin, Hapus bersihkan, Terjemahkan kirim ke layar terjemahan.'},
 {screen:'home',sel:'#transCard',t:'Terjemahan 🌐',b:'Di kartu ini kamu menerjemahkan hasil OCR dengan gaya formal / semi / gaul.'},
-{screen:'trans',sel:'#trStyle',t:'Gaya bahasa 🗣',b:'Pilih Formal, Semi-formal, atau Gaul (aku-kau, bukan lo-gue).'},
-{screen:'trans',sel:'#trInput',t:'Sumber teks 📝',b:'Tempel teks OCR di sini lalu tekan "TERJEMAHKAN". Semua baris (termasuk kode ") akan diterjemahkan. Selesai! 🎉'}
+{screen:'trans',sel:'#trStyle',t:'Gaya bahasa 🗣',b:'Pilih Formal, Semi-formal, atau Gaul. Panggilan tidak dilokalkan; terjemahan non-Inggris CAPSLOCK.'},
+{screen:'trans',sel:'#trInput',t:'Sumber teks 📝',b:'Tempel teks OCR di sini lalu tekan "TERJEMAHKAN". Semua baris (termasuk kode ") diterjemahkan. Selesai! 🎉'}
 ];
 function hideRevealed(){ revealed.forEach(id=>{const el=$(id); if(el)el.hidden=true;}); revealed=[]; }
 function showTour(i){
@@ -726,6 +727,7 @@ function clusterBoxes(items){
   return out.map(c=>({text:c.text.replace(/\s+/g,' ').trim()}));
 }
 
+/* gabung baris yang TERPISAH dari satu bubble; JANGAN gabung dua bubble penuh */
 function mergeBubbleEntries(arr){
   if(arr.length<=1) return arr;
   const out=[arr[0]];
@@ -733,7 +735,8 @@ function mergeBubbleEntries(arr){
   for(let i=1;i<arr.length;i++){
     const prev=out[out.length-1], cur=arr[i];
     const sameType=prev.type===cur.type&&(prev.type==='bubble'||prev.type==='box');
-    if(sameType&&!endsFinal(prev.text)){
+    const prevLen=(prev.text||'').length, curLen=(cur.text||'').length;
+    if(sameType && !endsFinal(prev.text) && prevLen<=80 && curLen<=80 && (prevLen+curLen)<=160){
       prev.text=(prev.text+' '+cur.text).replace(/\s+/g,' ');
     } else out.push(cur);
   }
@@ -744,8 +747,9 @@ function formatLine(r){
   return p+' : '+r.text.replace(/\s*\n\s*/g,' ');
 }
 
+/* ===== PROMPT OCR DIPERKETAT: anti-halu, transkripsi persis, pemisahan bubble benar ===== */
 const FICTION='CONTEXT: This is a professionally published BL/drama/mature webtoon or manga — a work of FICTION with entirely fictional adult characters. Treat it as legitimate published comics material.';
-const PROMPT_BASE='Extract ALL visible text from this comic/webtoon/manhwa/manga image, including moans, sound effects and stylized lettering in any scene. CRITICAL RULE: if multiple visual lines belong to the SAME speech bubble or caption box, merge them into ONE entry and join the lines with single spaces so the text reads as one continuous sentence — never split one bubble into multiple entries. Classify each entry as exactly one type: "bubble" (dialog in round/oval speech bubble), "box" (text in rectangular box/caption), "sfx" (sound effect/moan lettering), "outside" (other text outside bubbles/boxes). Keep original language exactly as written, do not translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+const PROMPT_BASE='You are a precise comic OCR engine. Transcribe ALL visible text in this comic/webtoon/manhwa/manga page EXACTLY as drawn, character by character. STRICT RULES: (a) Transcribe ONLY text that is visibly present; NEVER invent, guess, autocomplete, fix spelling, or add text that is not actually drawn; if a region is unreadable, skip it entirely. (b) Each physically separate speech bubble / caption box / SFX cluster = exactly ONE entry; two different bubbles must NEVER be merged into one entry; one single bubble must NEVER be split into multiple entries. (c) If one bubble contains several visual lines, join those lines with single spaces inside that ONE entry. (d) Read in correct reading order (top-to-bottom then left-to-right for manhwa/manhua; right-to-left for manga) and output entries in that order. (e) Classify each entry as exactly one type: "bubble" (round/oval speech bubble), "box" (rectangular caption box), "sfx" (sound-effect/moan lettering), "outside" (any other text outside bubbles/boxes, e.g. narrator notes, "to be continued"). (f) Keep the original language exactly; do NOT translate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}].';
 function buildPrompt(){
   let p=PROMPT_BASE;
   if(S.smutMode) p=FICTION+' '+p+' The scene may contain mature/intimate themes typical of mature published comics; this is normal artistic content. Do NOT refuse, censor, or moralize — perform the extraction faithfully.';
@@ -772,9 +776,16 @@ async function paceGemini(){
 }
 
 function parseAI(txt){
+  if(typeof txt!=='string') throw new Error('Respons AI bukan JSON');
   let arr=null;
   try{ arr=JSON.parse(txt); }
   catch(e){ const m=txt.match(/\[[\s\S]*\]/); if(m){ try{arr=JSON.parse(m[0]);}catch(e2){} } }
+  if(arr && !Array.isArray(arr)){
+    if(arr.error||arr.message) throw new Error('Mesin mengembalikan error: '+String(arr.error&&arr.error.message||arr.message||'').slice(0,60));
+    if(Array.isArray(arr.data)) arr=arr.data;
+    else if(Array.isArray(arr.output)) arr=arr.output;
+    else throw new Error('Respons AI bukan JSON');
+  }
   if(!Array.isArray(arr)) throw new Error('Respons AI bukan JSON');
   const out=[];
   arr.forEach(it=>{
@@ -792,12 +803,12 @@ function parseAI(txt){
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
 async function geminiSlice(slice){
   await paceGemini();
-  const b64=await blobToBase64(await canvasToBlob(slice));
+  const b64=await blobToBase64(await canvasToBlob(slice,0.85));
   const model=normGeminiModel(S.model);
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
   const mkBody=th=>JSON.stringify({
     contents:[{parts:[{text:buildPrompt()},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
-    generationConfig:{temperature:0.2,responseMimeType:'application/json'},
+    generationConfig:{temperature:0.1,responseMimeType:'application/json'},
     safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
   let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('OFF')});
   if(r.status===400) r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
@@ -812,26 +823,35 @@ async function geminiSlice(slice){
   return parseAI(txt);
 }
 const OC={
-  groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey},
-  mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey},
-  openrouter:{base:()=>'https://openrouter.ai/api/v1',model:()=>S.orModel,key:()=>S.orKey},
-  sumopod:{base:()=>(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,''),model:()=>S.sumoModel,key:()=>S.sumoKey,cors:()=>S.sumoCors}
+  groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey,alt:['meta-llama/llama-4-scout-17b-16e-instruct','llama-3.2-90b-vision-preview']},
+  mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey,alt:['pixtral-large-latest','pixtral-12b']},
+  openrouter:{base:()=>'https://openrouter.ai/api/v1',model:()=>S.orModel,key:()=>S.orKey,alt:['qwen/qwen-2-vl-7b-instruct:free','meta-llama/llama-3.2-11b-vision-instruct:free']},
+  sumopod:{base:()=>(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,''),model:()=>S.sumoModel,key:()=>S.sumoKey,cors:()=>S.sumoCors,alt:['openai/gpt-5.4','anthropic/claude-sonnet-4-6','gemini/gemini-3-flash-preview']}
 };
 async function ocSlice(name,slice){
   const cfg=OC[name];
-  const b64=await blobToBase64(await canvasToBlob(slice));
+  const b64=await blobToBase64(await canvasToBlob(slice,0.85));
   let url=cfg.base()+'/chat/completions';
   if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(name==='openrouter') headers['X-Title']='Rigel OCR';
-  const r=await fetch(url,{method:'POST',headers,
-    body:JSON.stringify({model:cfg.model(),temperature:0.15,
-      messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
-        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
-  if(!r.ok){ const t=await r.text(); throw new Error(name+' HTTP '+r.status+' '+t.slice(0,50)); }
-  calls[name]=(calls[name]||0)+1;
-  const j=await r.json();
-  return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
+  const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
+  let lastErr=null;
+  for(const mm of models){
+    try{
+      const r=await fetch(url,{method:'POST',headers,
+        body:JSON.stringify({model:mm,temperature:0.1,
+          messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
+            {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+      if(!r.ok){ const t=await r.text(); lastErr=new Error(name+' HTTP '+r.status+' '+t.slice(0,50));
+        if(/401|403/.test(String(r.status))) throw lastErr;
+        continue; }
+      calls[name]=(calls[name]||0)+1;
+      const j=await r.json();
+      return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
+    }catch(e){ lastErr=e; if(/401|403/.test(String(e.message||''))) throw e; }
+  }
+  throw lastErr||new Error(name+' gagal');
 }
 function cloudLang(){
   if(S.langs.kor)return 'korean'; if(S.langs.jpn)return 'japanese';
@@ -871,16 +891,18 @@ async function makeWorker(langs,opts){
   }
   return await Tesseract.createWorker(langs,1,opts);
 }
+function withTimeout(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('offline timeout')),ms))]); }
 function loadImg(file){ return new Promise((res,rej)=>{
   const url=URL.createObjectURL(file); const img=new Image();
   img.onload=()=>{URL.revokeObjectURL(url);res(img);};
   img.onerror=e=>{URL.revokeObjectURL(url);rej(e);};
   img.src=url;
 });}
+/* resolusi dinaikkan ke 1568px agar pembacaan teks lebih akurat (kurang salah baca) */
 async function prepareSlices(file,gem){
   const img=await loadImg(file);
   const ow=img.width, oh=img.height;
-  const sc = gem ? (ow>1280?1280/ow:1) : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
+  const sc = gem ? (ow>1568?1568/ow:1) : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
   const w=Math.round(ow*sc);
   const sliceH = S.segOn ? S.segH : oh+1;
   const srcSliceH=Math.floor(sliceH/sc);
@@ -935,7 +957,7 @@ async function runOCR(files){
   if(S.useOR&&S.orKey) q.push('openrouter');
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
-  let useCloud=S.cloud, tw=null, gemini429=0;
+  let useCloud=S.cloud, tw=null, geminiRetry=0;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -963,39 +985,40 @@ async function runOCR(files){
                 let lines=null, attempts=0;
                 while(engine&&!lines){
                   try{
-                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); await sleep(1500); gemini429=0; }
-                    else { lines=await ocSlice(engine,slices[si]); await sleep(100); }
+                    if(engine==='gemini'){ lines=await geminiSlice(slices[si]); geminiRetry=0; }
+                    else { lines=await ocSlice(engine,slices[si]); }
                   }catch(e){
                     attempts++;
-                    const netErr=/fetch|network|failed/i.test(e.message);
-                    if(attempts<=2&&netErr){ await sleep(1200); continue; }
-                    if(engine==='gemini'&&/429/.test(e.message)){
-                      gemini429++;
-                      if(gemini429<=3){
-                        setStatus('⏳ RPM Gemini penuh, menunggu 60s lalu coba lagi ('+gemini429+'/3)...');
-                        await sleep(60000);
-                      } else {
-                        runNotes.push('Gemini: limit'); engine=q.shift()||null; gemini429=0;
-                      }
+                    const msg=String(e&&e.message||e);
+                    const netErr=/fetch|network|failed/i.test(msg);
+                    if(attempts<=2&&netErr){ await sleep(800); continue; }
+                    if(engine==='gemini'&&/429|503/.test(msg)){
+                      geminiRetry++;
+                      if(geminiRetry<=3){
+                        setStatus('⏳ Gemini sibuk/limit (429/503), tunggu 15s lalu coba lagi ('+geminiRetry+'/3)...');
+                        await sleep(15000);
+                      } else { runNotes.push('Gemini: limit'); engine=q.shift()||null; geminiRetry=0; }
                     } else {
-                      runNotes.push((ENG_NAMES[engine]||engine)+': '+e.message.slice(0,50));
-                      setStatus('⚠ '+e.message+(q.length?' — ganti mesin...':''));
+                      runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
+                      setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
                       engine=q.shift()||null;
                     }
                   }
                 }
                 if(!lines&&useCloud){
-                  try{ lines=await ocrSpaceSlice(slices[si]); await sleep(800); }
-                  catch(e){ useCloud=false; runNotes.push('OCR.space: '+e.message.slice(0,40)); }
+                  try{ lines=await ocrSpaceSlice(slices[si]); }
+                  catch(e){ useCloud=false; runNotes.push('OCR.space: '+String(e&&e.message||e).slice(0,40)); }
                 }
                 if(!lines){
-                  if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
-                  const {data}=await tw.recognize(slices[si]);
-                  const items=(data.lines||[]).map(l=>{
-                    const b=l.bbox||{x0:0,y0:0,x1:10,y1:10};
-                    return {text:(l.text||'').trim(), box:{left:b.x0,top:b.y0,right:b.x1,bottom:b.y1}};
-                  }).filter(it=>it.text);
-                  lines=clusterBoxes(items).map(t=>({text:t.text,confidence:null}));
+                  try{
+                    if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
+                    const {data}=await withTimeout(tw.recognize(slices[si]),90000);
+                    const items=(data.lines||[]).map(l=>{
+                      const b=l.bbox||{x0:0,y0:0,x1:10,y1:10};
+                      return {text:(l.text||'').trim(), box:{left:b.x0,top:b.y0,right:b.x1,bottom:b.y1}};
+                    }).filter(it=>it.text);
+                    lines=clusterBoxes(items).map(t=>({text:t.text,confidence:null}));
+                  }catch(e){ runNotes.push('Offline: '+String(e&&e.message||e).slice(0,40)); }
                 }
                 perSlice[si]=mergeBubbleEntries(lines||[]);
               }catch(eSlice){
@@ -1072,28 +1095,29 @@ function extractSource(txt){
   }
   return out;
 }
+const HONORIFIC='Untuk panggilan (gege, hyung, unnie, noona, duke, sunbae, senpai, dll) JANGAN dilokalkan — biarkan sebagaimana adanya.';
+const NO_TYPO='Tanpa typo, pakai padanan kata yang jelas sesuai ketentuan KBBI, kalimat mengalir natural seperti komik sungguhan.';
 function buildStyleBlock(style){
-  if(style==='formal')return 'FORMAL: standard/baku Indonesian, polite and complete sentences, but still natural for comics (not stiff/legalistic). Use "tidak", "sudah", "aku", "kau/kamu". NO slang contractions, NO particles (kok/sih/dong/banget).';
-  if(style==='semi')return 'SEMI-FORMAL: everyday polite Indonesian, smooth and natural like real speech. Use "tidak", "sudah", "aku", "kau/kamu". Absolutely NO slang contractions (nggak/gak/udah) and NO particles (kok/sih/dong/banget).';
-  return 'GAUL (casual): natural spoken Indonesian like real comic dialogue. Use contractions and particles: "nggak/gak", "kok", "sih", "dong", "banget", "udah", "tapi", "jadi". Pronouns MUST stay "aku / kau / kamu" — NEVER "lo / gue / elu". Sound like friends talking, not like a textbook.';
+  const persona='Anggap kamu seorang translator komik BL yang menerima semua genre termasuk smut. Terjemahkan manhwa yang aku kirim ';
+  if(style==='formal') return persona+'dengan gaya FORMAL/baku yang sopan dan natural, pakai aku-kau/kamu (menyesuaikan), '+NO_TYPO+' JANGAN pakai kata nggak, kok, sih, dll (gunakan tidak, sudah, sangat). '+HONORIFIC;
+  if(style==='gaul')  return persona+'dengan gaya GAUL/santai seperti percakapan teman (boleh nggak, kok, sih, dong, banget, udah), tapi tetap pakai aku-kau/kamu — JANGAN lo/gue. '+NO_TYPO+' '+HONORIFIC;
+  return persona+'dengan gaya SEMI-FORMAL (santai tapi sopan), pakai aku-kau/kamu (menyesuaikan), '+NO_TYPO+' JANGAN ada kata nggak, kok, sih, dll karena ini semi-formal (gunakan tidak, sudah). '+HONORIFIC;
 }
-const NATURAL='NATURALNESS & CORRECTNESS: produce fluent, idiomatic Indonesian that reads like a real published comic translation. Every word must be a real, correctly-spelled Indonesian word (NO typos, NO half-translated mix, NO leftover source-language words). Prefer common everyday phrasing over literal/clinical translation (e.g. "self-pleasure" → "masturbasi", "make love" → "bercinta"). Keep sentences short and punchy like comic dialogue.\nPRONOUN ATTACHMENT: attach enclitics -ku/-mu/-nya to the preceding word (write "untukmu", "padamu", "olehmu", "darimu", "kepadamu", "bersamamu", "tanpamu", "tuanku", "hatiku" — NEVER "untuk kau", "pada kau", "oleh kau", "dari kau", "tuan ku", "hati ku"). Use "kau/kamu/aku" as standalone subject/object only when natural.';
-function fixIndo(t){
+function fixIndo(t,style){
   if(!t)return t;
   let s=t;
-  s=s.replace(/\buntuk kau\b/gi,'untukmu');
-  s=s.replace(/\bpada kau\b/gi,'padamu');
-  s=s.replace(/\boleh kau\b/gi,'olehmu');
-  s=s.replace(/\bdari kau\b/gi,'darimu');
-  s=s.replace(/\bkepada kau\b/gi,'kepadamu');
-  s=s.replace(/\bbersama kau\b/gi,'bersamamu');
-  s=s.replace(/\btanpa kau\b/gi,'tanpamu');
-  s=s.replace(/\bmenuju kau\b/gi,'menujumu');
+  if(style!=='gaul'){
+    s=s.replace(/\bnggak\b/gi,'tidak').replace(/\bgak\b/gi,'tidak');
+    s=s.replace(/\budah\b/gi,'sudah');
+    s=s.replace(/\bkok\b/gi,'').replace(/\bsih\b/gi,'').replace(/\bdong\b/gi,'').replace(/\bbanget\b/gi,'sekali');
+    s=s.replace(/\buntuk kau\b/gi,'untukmu'); s=s.replace(/\bpada kau\b/gi,'padamu');
+    s=s.replace(/\boleh kau\b/gi,'olehmu'); s=s.replace(/\bdari kau\b/gi,'darimu');
+    s=s.replace(/\bkepada kau\b/gi,'kepadamu'); s=s.replace(/\bbersama kau\b/gi,'bersamamu');
+    s=s.replace(/\btanpa kau\b/gi,'tanpamu');
+  }
   s=s.replace(/([A-Za-z])\s+(ku|mu|nya)\b/g,'$1$2');
-  s=s.replace(/\bke pada\b/gi,'kepada');
-  s=s.replace(/\bdi sebabkan\b/gi,'disebabkan');
-  s=s.replace(/\btuan ku\b/gi,'tuanku');
-  s=s.replace(/\s{2,}/g,' ');
+  s=s.replace(/\bke pada\b/gi,'kepada'); s=s.replace(/\bdi sebabkan\b/gi,'disebabkan'); s=s.replace(/\btuan ku\b/gi,'tuanku');
+  s=s.replace(/\s{2,}/g,' ').replace(/\s+([,.!?])/g,'$1');
   return s.trim();
 }
 async function callTextOnce(engine,prompt){
@@ -1112,13 +1136,20 @@ async function callTextOnce(engine,prompt){
   if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(engine==='openrouter') headers['X-Title']='Rigel OCR';
-  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model:cfg.model(),temperature:0.2,messages:[{role:'user',content:prompt}]})});
-  if(!r.ok){ const t=await r.text(); throw new Error(engine+' HTTP '+r.status+' '+t.slice(0,50)); }
-  const j=await r.json();
-  return ((((j.choices||[])[0]||{}).message||{}).content||'');
+  const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
+  let lastErr=null;
+  for(const mm of models){
+    try{
+      const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model:mm,temperature:0.2,messages:[{role:'user',content:prompt}]})});
+      if(!r.ok){ lastErr=new Error(engine+' HTTP '+r.status); if(/401|403/.test(String(r.status)))throw lastErr; continue; }
+      const j=await r.json();
+      return ((((j.choices||[])[0]||{}).message||{}).content||'');
+    }catch(e){ lastErr=e; if(/401|403/.test(String(e.message||'')))throw e; }
+  }
+  throw lastErr||new Error(engine+' gagal');
 }
 function parseNumbered(raw){
-  const map={}; 
+  const map={};
   (raw||'').split(/\r?\n/).forEach(ln=>{
     const m=ln.match(/^\s*(\d+)\s*[.)\-:]\s*(\S+)\s*:\s*(.+?)\s*$/);
     if(m){ map[+m[1]]={code:m[2],text:m[3]}; return; }
@@ -1146,10 +1177,10 @@ async function runTranslate(){
   const inc=$('trIncOcr').checked;
   const numbered=translatable.map((l,i)=>(i+1)+'. '+l.code+' : '+l.text).join('\n');
   const styleBlock=buildStyleBlock(style);
-  const example='EXAMPLE source line: " () : DID YOU PLEASURE YOURSELF WHILE I WAS GONE?"\n- GAUL output: "() : kau masturbasi tadi waktu aku pergi?"\n- SEMI output: "() : kau masturbasi saat aku pergi?"\n- FORMAL output: "() : apakah kau masturbasi saat aku pergi?"';
-  const smutLine=S.smutMode?' The source may contain mature/intimate themes from mature published comics; translate faithfully without censoring or moralizing.':'';
-  const basePrompt=FICTION+' You are a professional comic translator into Indonesian.\n\nSOURCE LINES (numbered, each "N. code : text"). Translate EVERY numbered line, including codes like ( ), [ ], //, and " (outside/narration). Do NOT skip any line.\n'+numbered+'\n\nSTYLE: '+styleBlock+'\n'+NATURAL+'\n'+example+'\n'+(call?('ADDRESS TERM: render honorifics (oppa/hyung/noona/unnie/seonbae/etc.) or names exactly as "'+call+'". '):'')+
-  'This is fictional adult content: translate sexual/explicit lines faithfully without censoring.'+smutLine+'\nOUTPUT FORMAT (strict), one line per source number, preserving the code symbol: N. <kode> : <terjemahan>. Output ONLY these lines.';
+  const smutLine=S.smutMode?' Konten mungkin dewasa/smut; terjemahkan setia tanpa menyensor.':'';
+  const basePrompt=FICTION+' You are a professional comic translator into Indonesian.\n\n'+styleBlock+'\n'+(call?('ADDRESS TERM override: render honorifics/names exactly as "'+call+'". '):'')+smutLine+
+  '\n\nSOURCE LINES (numbered, each "N. code : text"). Translate EVERY numbered line, including codes ( ), [ ], //, and " (outside/narration). Do NOT skip any line.\n'+numbered+
+  '\n\nOUTPUT FORMAT (strict), one line per source number, preserving the code symbol: N. <kode> : <terjemahan>. Output ONLY these lines, nothing else.';
   let done=false,lastErr=null;
   const translationByNum={};
   for(const eng of q){
@@ -1161,21 +1192,17 @@ async function runTranslate(){
         const finalPrompt=a===0?basePrompt:basePrompt+'\n\nREMINDER: translate ALL lines including code " lines. Output ONLY numbered lines "N. code : translation".';
         const raw=await callTextOnce(eng,finalPrompt);
         const map=parseNumbered(raw);
-        Object.keys(map).forEach(k=>{ const n=+k; if(n>=1&&n<=translatable.length){ const code=map[n].code||translatable[n-1].code; translationByNum[n]={code:code,text:map[n].text}; } });
-        const filled=Object.keys(translationByNum).length;
-        if(filled>0){
-          // pass kedua untuk baris yang masih bolong
-          const missing=[]; for(let n=1;n<=translatable.length;n++){ if(!translationByNum[n]) missing.push(n); }
-          if(missing.length){
-            const sub=missing.map((n,k)=>(k+1)+'. '+translatable[n-1].code+' : '+translatable[n-1].text).join('\n');
-            try{
-              const raw2=await callTextOnce(eng,'Translate ONLY these lines into Indonesian. Output ONLY lines "N. <kode> : <terjemahan>" with N starting at 1.\nSTYLE: '+styleBlock+'\n'+NATURAL+'\n'+sub);
-              const map2=parseNumbered(raw2);
-              missing.forEach((origIdx,k)=>{ const t=map2[k+1]; if(t&&t.text) translationByNum[origIdx]={code:t.code||translatable[origIdx-1].code,text:t.text}; });
-            }catch(e2){}
-          }
-          success=Object.keys(translationByNum).length>0;
+        Object.keys(map).forEach(k=>{ const n=+k; if(n>=1&&n<=translatable.length){ translationByNum[n]={code:map[n].code||translatable[n-1].code,text:map[n].text}; } });
+        let missing=[]; for(let n=1;n<=translatable.length;n++){ if(!translationByNum[n]) missing.push(n); }
+        if(missing.length){
+          const sub=missing.map((n,k)=>(k+1)+'. '+translatable[n-1].code+' : '+translatable[n-1].text).join('\n');
+          try{
+            const raw2=await callTextOnce(eng,'Translate ONLY these lines into Indonesian. '+styleBlock+' Output ONLY lines "N. <kode> : <terjemahan>" with N starting at 1.\n'+sub);
+            const map2=parseNumbered(raw2);
+            missing.forEach((origIdx,k)=>{ const t=map2[k+1]; if(t&&t.text) translationByNum[origIdx]={code:t.code||translatable[origIdx-1].code,text:t.text}; });
+          }catch(e2){}
         }
+        success=Object.keys(translationByNum).length>0;
         if(!success) lastErr=new Error('Respons tidak punya baris bernomor');
       }catch(e){ lastErr=e; setTrStatus('⚠ '+(ENG_NAMES[eng]||eng)+': '+String(e&&e.message||e).slice(0,60)+' — coba mesin lain.'); }
     }
@@ -1185,13 +1212,15 @@ async function runTranslate(){
   $('trProg').hidden=true;
   if(transCancel){ setTrStatus('⏹ Dibatalkan.'); return; }
   if(!done){ setTrStatus('❌ Gagal menerjemahkan: '+String(lastErr&&lastErr.message||'semua mesin gagal')); return; }
-  const out=[]; 
+  const out=[];
+  let idx=0;
   items.forEach(it=>{
     if(it.type==='panel'){ out.push(it.orig); }
     else if(it.type==='line'){
-      const idx=items.filter(x=>x.type==='line').indexOf(it)+1;
+      idx++;
       const tr=translationByNum[idx];
-      const trText=fixIndo(tr&&tr.text?tr.text:it.text);
+      let trText=fixIndo(tr&&tr.text?tr.text:it.text, style);
+      trText=trText.toUpperCase();
       const code=(tr&&tr.code)||it.code;
       if(inc){ out.push(it.code+' : '+it.text); out.push(code+' : '+trText); }
       else{ out.push(code+' : '+trText); }

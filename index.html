@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: error sementara (429/500/jeda) ditunggu & dicoba ulang sampai 4× sebelum pindah — selama saldo ada, Sumopod tetap dipakai, tidak kabur ke offline.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: request serial (tidak paralel) agar tidak self-rate-limit & saldo tidak boros; setiap segmen dibatasi percobaan agar tidak stuck.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -303,7 +303,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="highAcc" checked> Model offline tinggi</label>
 </div>
 <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
-<div class="hint">OCR offline diberi batas waktu 90s per segmen agar tidak stuck; bila lewat, segmen dilewati & hasil yang sudah ada tetap dikirim.</div>
+<div class="hint">OCR offline diberi batas waktu 45s per segmen agar tidak stuck; bila lewat, segmen dilewati & hasil yang sudah ada tetap dikirim.</div>
 
 <h3>🔐 Backup & Restore:</h3>
 <button class="mini" onclick="backupData()">💾 Backup</button>
@@ -758,6 +758,8 @@ function buildPrompt(){
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
+/* perkecil canvas ke lebar w (dipakai saat retry respons rusak) */
+function fitCanvas(src,w){ if(src.width<=w)return src; const h=Math.round(src.height*w/src.width); const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(src,0,0,w,h); return c; }
 
 const geminiTimes=[];
 async function paceGemini(){
@@ -801,7 +803,7 @@ function parseAI(txt){
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
 async function geminiSlice(slice){
   await paceGemini();
-  const b64=await blobToBase64(await canvasToBlob(slice,0.85));
+  const b64=await blobToBase64(await canvasToBlob(slice,0.8));
   const model=normGeminiModel(S.model);
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
   const mkBody=th=>JSON.stringify({
@@ -828,7 +830,7 @@ const OC={
 };
 async function ocSlice(name,slice){
   const cfg=OC[name];
-  const b64=await blobToBase64(await canvasToBlob(slice,0.85));
+  const b64=await blobToBase64(await canvasToBlob(slice,0.8));
   let url=cfg.base()+'/chat/completions';
   const alreadyProxy=!!(cfg.cors&&cfg.cors());
   if(alreadyProxy) url='https://corsproxy.io/?url='+encodeURIComponent(url);
@@ -843,7 +845,6 @@ async function ocSlice(name,slice){
     let r;
     try{ r=await fetch(url,{method:'POST',headers,body}); }
     catch(e){
-      // error jaringan/CORS → coba lewat proxy CORS otomatis (sekali)
       if(alreadyProxy){ lastErr=e; continue; }
       try{ r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{method:'POST',headers,body}); }
       catch(e2){ lastErr=e2; continue; }
@@ -905,7 +906,7 @@ function loadImg(file){ return new Promise((res,rej)=>{
 async function prepareSlices(file,gem){
   const img=await loadImg(file);
   const ow=img.width, oh=img.height;
-  const sc = gem ? (ow>1568?1568/ow:1) : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
+  const sc = gem ? (ow>1280?1280/ow:1) : Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
   const w=Math.round(ow*sc);
   const sliceH = S.segOn ? S.segH : oh+1;
   const srcSliceH=Math.floor(sliceH/sc);
@@ -961,7 +962,6 @@ async function runOCR(files){
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
   let useCloud=S.cloud, tw=null, geminiRetry=0;
-  const engineRetry={};
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -977,15 +977,18 @@ async function runOCR(files){
         setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
         try{
           const slices=await prepareSlices(batch[i],!!engine);
-          const conc=(engine&&engine!=='gemini')?2:1;
+          /* Sumopod (berbayar) SERIAL agar tidak self-rate-limit & saldo hemat; lainnya paralel 2 */
+          const conc=(engine==='sumopod')?1:((engine&&engine!=='gemini')?2:1);
           const perSlice=new Array(slices.length);
           let nextIdx=0;
           const poolFn=async()=>{
             while(!cancelled){
               const si=nextIdx++; if(si>=slices.length) break;
               try{
-                let lines=null, shrink=false, transientRetry=0;
-                while(engine&&!lines){
+                let lines=null, shrink=false, transientRetry=0, attempts=0;
+                /* batas percobaan per segmen agar TIDAK pernah stuck/loop tak berakhir */
+                while(engine && !lines && attempts<6){
+                  attempts++;
                   const useSlice = shrink? fitCanvas(slices[si],900) : slices[si];
                   setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
                           (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
@@ -994,28 +997,20 @@ async function runOCR(files){
                     else { lines=await ocSlice(engine,useSlice); }
                   }catch(e){
                     const msg=String(e&&e.message||e);
-                    const auth=/401|403|invalid api key|unauthorized/i.test(msg);
+                    const auth=/401|403|invalid api key|unauthorized|402|insufficient/i.test(msg);
                     const transient=/429|500|502|503|timeout|network|failed|fetch/i.test(msg);
                     if(auth){
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
-                      setStatus('⚠ '+(ENG_NAMES[engine]||engine)+' key ditolak — ganti mesin...');
+                      setStatus('⚠ '+(ENG_NAMES[engine]||engine)+' key/saldo ditolak — ganti mesin...');
                       engine=q.shift()||null; shrink=false; transientRetry=0; continue;
                     }
                     if(transient){
-                      const paid=(engine==='sumopod');
-                      const maxR=paid?4:2;
-                      if(transientRetry<maxR){
-                        transientRetry++;
-                        setStatus('⏳ '+(ENG_NAMES[engine]||engine)+' sibuk/jeda jaringan, tunggu '+(paid?10:5)+'s ('+transientRetry+'/'+maxR+')...');
-                        await sleep(paid?10000:5000);
-                        continue;
-                      }
+                      if(transientRetry<2){ transientRetry++; setStatus('⏳ '+(ENG_NAMES[engine]||engine)+' sibuk/jeda, tunggu 2s ('+transientRetry+'/2)...'); await sleep(2000); continue; }
                       transientRetry=0;
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
                       setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
                       engine=q.shift()||null; shrink=false; continue;
                     }
-                    // error parse / lain: coba sekali dengan gambar diperkecil, lalu ganti mesin
                     if(!shrink){ shrink=true; continue; }
                     shrink=false;
                     runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
@@ -1030,7 +1025,7 @@ async function runOCR(files){
                 if(!lines){
                   try{
                     if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
-                    const {data}=await withTimeout(tw.recognize(slices[si]),90000);
+                    const {data}=await withTimeout(tw.recognize(slices[si]),45000);
                     const items=(data.lines||[]).map(l=>{
                       const b=l.bbox||{x0:0,y0:0,x1:10,y1:10};
                       return {text:(l.text||'').trim(), box:{left:b.x0,top:b.y0,right:b.x1,bottom:b.y1}};

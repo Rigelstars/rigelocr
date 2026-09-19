@@ -86,7 +86,6 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 #tourCard .row .sp{flex:1;font-size:12px;color:var(--otx);opacity:.7}
 .tbtn{padding:9px 12px;border-radius:10px;background:var(--seg);color:var(--tx);border:1px solid var(--segB);font-size:12px;font-weight:700;cursor:pointer}
 .tbtnp{padding:9px 14px;border-radius:10px;background:var(--pri);color:var(--priTx);border:none;font-size:12px;font-weight:800;cursor:pointer}
-/* Dialog donasi */
 #donateOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;display:none;align-items:flex-start;justify-content:center;padding:20px}
 #donateOverlay.show{display:flex}
 .donatePanel{background:var(--obg);border:1px solid var(--segB);border-radius:16px;max-width:420px;width:100%;margin-top:40px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
@@ -214,7 +213,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline (persis v9).<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>⚡ Sumopod = ISTIMEWA</b>: berbayar berbasis token → TANPA limit & tanpa pacing; error sementara dicoba ulang 5× dan TIDAK jatuh ke offline selama saldo/key masih valid.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -275,7 +274,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 
 <div id="grpSumo" hidden>
 <fieldset><legend>🔑 Sumopod Token</legend><input id="setSumoKey" placeholder="sk-..."></fieldset>
-<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir).</div>
+<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir). <b>ISTIMEWA:</b> tanpa limit & tanpa pacing; error sementara dicoba ulang 5× dan tidak jatuh ke offline selama saldo/key valid.</div>
 <label>Model Sumopod</label>
 <select id="sel_sumo" onchange="onModelSel('sumo')">
 <option value="gemini/gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (default)</option>
@@ -313,7 +312,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="highAcc"> Model offline tinggi (akurat tapi lambat)</label>
 </div>
 <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
-<div class="hint">Offline default pakai traineddata standar agar loading cepat; centang "tinggi" hanya bila butuh akurasi ekstra.</div>
+<div class="hint">Cloud/offline HANYA dipakai bila Sumopod benar-benar mati/key ditolak; selama Sumopod hidup, fallback dimatikan agar tidak loading lama.</div>
 
 <h3>💰 Donasi:</h3>
 <label>Link Donasi (Trakteer/Saweria/Ko-fi)</label>
@@ -447,7 +446,6 @@ function setSegPreset(v){ setVal('setSegH',v); }
 function setRtl(v){ S.rtl=v; persist(); paintRtl(); }
 function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
 
-/* ===== DONASI (dialog dalam aplikasi + tombol kembali) ===== */
 function openDonate(){
   const u=(S.donate||DEFAULT_DONATE||'').trim();
   if(!u){ alert('Link donasi belum diisi. Isi dulu di ⚙ Pengaturan → bagian Donasi.'); return; }
@@ -960,6 +958,8 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
+/* ===== runOCR: Sumopod ISTIMEWA (berbayar) — tanpa limit, tanpa pacing,
+     retry 5x pada error sementara, TIDAK jatuh ke offline selama Sumopod hidup ===== */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
@@ -975,6 +975,8 @@ async function runOCR(files){
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
   let useCloud=S.cloud, tw=null;
+  const paidActive = !!(S.useSumo && S.sumoKey);
+  let sumoDead = !paidActive;   // bila tanpa Sumopod, fallback bebas; bila ada Sumopod, fallback dikunci sampai Sumopod mati
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -996,8 +998,8 @@ async function runOCR(files){
             while(!cancelled){
               const si=nextIdx++; if(si>=slices.length) break;
               try{
-                let lines=null, shrink=false, attempts=0;
-                while(engine && !lines && attempts<4){
+                let lines=null, shrink=false, attempts=0, sumoRetry=0;
+                while(engine && !lines && attempts<6){
                   attempts++;
                   const useSlice = shrink? fitCanvas(slices[si],900) : slices[si];
                   setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
@@ -1005,10 +1007,16 @@ async function runOCR(files){
                   try{
                     if(engine==='gemini'){ lines=await geminiSlice(useSlice); await sleep(1500); }
                     else { lines=await ocSlice(engine,useSlice); await sleep(100); }
+                    if(engine==='sumopod') sumoRetry=0;
                   }catch(e){
-                    attempts++;
                     const msg=String(e&&e.message||e);
+                    const auth=/401|403|invalid api key|unauthorized|402|insufficient/i.test(msg);
                     const netErr=/fetch|network|failed/i.test(msg);
+                    if(engine==='sumopod'){
+                      if(auth){ sumoDead=true; runNotes.push('Sumopod: key/saldo ditolak'); engine=q.shift()||null; shrink=false; continue; }
+                      if(sumoRetry<5){ sumoRetry++; setStatus('⏳ Sumopod sibuk/jeda, coba lagi ('+sumoRetry+'/5)...'); await sleep(1500); continue; }
+                      sumoDead=true; runNotes.push('Sumopod: '+msg.slice(0,50)); engine=q.shift()||null; shrink=false; continue;
+                    }
                     if(attempts<=2&&netErr){ await sleep(1200); continue; }
                     if(engine==='gemini'&&/429/.test(msg)){
                       try{ setStatus('⏳ RPM Gemini penuh, menunggu 20s...'); await sleep(20000); lines=await geminiSlice(useSlice); }
@@ -1020,11 +1028,11 @@ async function runOCR(files){
                     }
                   }
                 }
-                if(!lines&&useCloud){
+                if(!lines && useCloud && sumoDead){
                   try{ lines=await ocrSpaceSlice(slices[si]); }
                   catch(e){ useCloud=false; runNotes.push('OCR.space: '+String(e&&e.message||e).slice(0,40)); }
                 }
-                if(!lines){
+                if(!lines && sumoDead){
                   try{
                     if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
                     const {data}=await withTimeout(tw.recognize(slices[si]),45000);

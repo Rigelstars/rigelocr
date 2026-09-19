@@ -71,6 +71,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 .ic.g{background:linear-gradient(135deg,#43a047,#2e7d32)}
 .ic.r{background:linear-gradient(135deg,#ff4d94,#d81b60)}
 .ic.p{background:linear-gradient(135deg,#ab47bc,#6a1b9a)}
+.ic.b{background:linear-gradient(135deg,#42a5f5,#1565c0)}
 .toolCard .body{flex:1;padding:6px 8px 6px 0}
 .toolCard .body .t{font-size:16px;font-weight:700;color:var(--hx)}
 .toolCard .body .d{font-size:12.5px;color:var(--hint);margin-top:3px;line-height:1.4}
@@ -119,6 +120,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <button class="toolCard" id="ocrCard" onclick="showScreen('ocr')"><span class="ic g">📖</span><span class="body"><div class="t">OCR Komik</div><div class="d">Ekstrak semua teks dari halaman komik dalam satu proses.</div></span><span class="arr">›</span></button>
 <button class="toolCard" id="transCard" onclick="openTrans()"><span class="ic r">🌐</span><span class="body"><div class="t">Terjemahan</div><div class="d">Terjemahkan hasil OCR (atau teks luar) formal / semi / gaul.</div></span><span class="arr">›</span></button>
 <button class="toolCard" onclick="openSettings()"><span class="ic p">⚙</span><span class="body"><div class="t">Mesin AI & Pengaturan</div><div class="d">Gemini, Groq, Mistral, OpenRouter, Sumopod — sakelar & key API.</div></span><span class="arr">›</span></button>
+<button class="toolCard" onclick="openDonate()"><span class="ic b">💰</span><span class="body"><div class="t">Donate Me</div><div class="d">Suka aplikasinya? Dukung pengembangan lewat Trakteer.</div></span><span class="arr">›</span></button>
 </div>
 <div class="footer-note">Tema: <span id="themeLbl">Pink</span> • ❓ panduan • 🎨 tema</div>
 </main>
@@ -204,7 +206,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: satu model pilihan (seperti v9, saldo tidak bocor ke model lain); error sementara dicoba ulang 3× sebelum pindah, jadi tidak gampang jatuh ke offline.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline (persis v9).<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -265,7 +267,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 
 <div id="grpSumo" hidden>
 <fieldset><legend>🔑 Sumopod Token</legend><input id="setSumoKey" placeholder="sk-..."></fieldset>
-<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir & tercepat).</div>
+<div class="hint"><b>ai.sumopod.com</b> → tab AI → API Keys (berbayar, penambal terakhir).</div>
 <label>Model Sumopod</label>
 <select id="sel_sumo" onchange="onModelSel('sumo')">
 <option value="gemini/gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (default)</option>
@@ -300,10 +302,15 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <div class="grid2">
 <label class="chk"><input type="checkbox" id="cloud" checked> OCR Cloud</label>
 <label class="chk"><input type="checkbox" id="confFilter" checked> Saring teks rusak</label>
-<label class="chk"><input type="checkbox" id="highAcc" checked> Model offline tinggi</label>
+<label class="chk"><input type="checkbox" id="highAcc"> Model offline tinggi (akurat tapi lambat)</label>
 </div>
 <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
-<div class="hint">OCR offline diberi batas waktu 45s per segmen agar tidak stuck; bila lewat, segmen dilewati & hasil yang sudah ada tetap dikirim.</div>
+<div class="hint">Offline default pakai traineddata standar agar loading cepat; centang "tinggi" hanya bila butuh akurasi ekstra.</div>
+
+<h3>💰 Donasi:</h3>
+<label>Link Donasi (Trakteer/Saweria/Ko-fi)</label>
+<input type="text" id="setDonate" placeholder="https://trakteer.id/rigelstars/tip" value="https://trakteer.id/rigelstars/tip">
+<div class="hint">Link ini dipakai tombol kartu <b>"Donate Me"</b> di halaman utama.</div>
 
 <h3>🔐 Backup & Restore:</h3>
 <button class="mini" onclick="backupData()">💾 Backup</button>
@@ -378,9 +385,11 @@ const screenMain=$('screen-home'), screenOcr=$('screen-ocr'), screenTrans=$('scr
       grpMistral=$('grpMistral'), grpOR=$('grpOR'), histList=$('histList'),
       rtlOn=$('rtlOn'), rtlOff=$('rtlOff'), ocrActions=$('ocrActions');
 
+const DEFAULT_DONATE = 'https://trakteer.id/rigelstars/tip';
+
 const DEF = {
   legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'"',
-  batch:5, rtl:false, theme:'pink', smutMode:false,
+  batch:5, rtl:false, theme:'pink', smutMode:false, donate:DEFAULT_DONATE,
   useGemini:true, useSumo:false, useGroq:false, useMistral:false, useOR:false,
   geminiKey:'', model:'gemini-3.5-flash-lite',
   sumoKey:'', sumoModel:'gemini/gemini-3.5-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
@@ -388,7 +397,7 @@ const DEF = {
   mistralKey:'', mistralModel:'pixtral-12b',
   orKey:'', orModel:'meta-llama/llama-3.2-11b-vision-instruct:free',
   segOn:true, segH:3000,
-  cloud:true, apiKey:'helloworld', highAcc:true, confFilter:true,
+  cloud:true, apiKey:'helloworld', highAcc:false, confFilter:true,
   inc:{bubble:true, box:true, sfx:true, outside:true},
   langs:{eng:false, ind:false, jpn:false, kor:true, chi_sim:false}
 };
@@ -416,6 +425,12 @@ function normGeminiModel(m){
 function setSegPreset(v){ setVal('setSegH',v); }
 function setRtl(v){ S.rtl=v; persist(); paintRtl(); }
 function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
+
+function openDonate(){
+  const u=(S.donate||DEFAULT_DONATE||'').trim();
+  if(!u){ alert('Link donasi belum diisi. Isi dulu di ⚙ Pengaturan → bagian Donasi.'); return; }
+  window.open(u,'_blank');
+}
 
 function onModelSel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return; if(sel.value==='__manual'){ inp.hidden=false; inp.focus(); } else { inp.hidden=true; inp.value=sel.value; } }
 function getModel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return ''; if(sel.value==='__manual')return (inp&&inp.value||'').trim(); return sel.value; }
@@ -505,6 +520,7 @@ function openSettings(){
   setVal('setBubble',S.legend_bubble); setVal('setBox',S.legend_box);
   setVal('setSfx',S.legend_sfx); setVal('setOutside',S.legend_outside);
   setVal('setBatch',S.batch);
+  setVal('setDonate',S.donate||DEFAULT_DONATE);
   setChk('useGemini',S.useGemini); setChk('useSumo',S.useSumo); setChk('useGroq',S.useGroq);
   setChk('useMistral',S.useMistral); setChk('useOR',S.useOR);
   setVal('setGeminiKey',S.geminiKey);
@@ -527,6 +543,7 @@ function saveSettings(){
   S.legend_bubble=val('setBubble','()'); S.legend_box=val('setBox','[]');
   S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','"');
   S.batch=Math.max(1,parseInt(val('setBatch','5'))||5);
+  S.donate=val('setDonate',DEFAULT_DONATE);
   S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(getModel('gemini'));
   S.sumoKey=val('setSumoKey',''); S.sumoModel=getModel('sumo')||'gemini/gemini-3.5-flash-lite';
   S.sumoBase=val('setSumoBase','https://ai.sumopod.com/v1'); S.sumoCors=chk('sumoCors');
@@ -760,20 +777,6 @@ function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReade
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
 function fitCanvas(src,w){ if(src.width<=w)return src; const h=Math.round(src.height*w/src.width); const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(src,0,0,w,h); return c; }
 
-const geminiTimes=[];
-async function paceGemini(){
-  let now=Date.now();
-  while(geminiTimes.length && now-geminiTimes[0]>60000) geminiTimes.shift();
-  if(geminiTimes.length>=14){
-    const wait=60000-(Date.now()-geminiTimes[0])+300;
-    setStatus('⏳ Menjaga batas Gemini (≤14/menit), tunggu '+Math.ceil(wait/1000)+'s...');
-    await sleep(wait);
-    now=Date.now();
-    while(geminiTimes.length && now-geminiTimes[0]>60000) geminiTimes.shift();
-  }
-  geminiTimes.push(Date.now());
-}
-
 function parseAI(txt){
   if(typeof txt!=='string') throw new Error('Respons AI bukan JSON');
   let arr=null;
@@ -801,13 +804,12 @@ function parseAI(txt){
 
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
 async function geminiSlice(slice){
-  await paceGemini();
   const b64=await blobToBase64(await canvasToBlob(slice,0.8));
   const model=normGeminiModel(S.model);
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent?key='+encodeURIComponent(S.geminiKey);
   const mkBody=th=>JSON.stringify({
     contents:[{parts:[{text:buildPrompt()},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
-    generationConfig:{temperature:0.1,responseMimeType:'application/json'},
+    generationConfig:{temperature:0.2,responseMimeType:'application/json'},
     safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
   let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('OFF')});
   if(r.status===400) r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:mkBody('BLOCK_ONLY_HIGH')});
@@ -821,7 +823,6 @@ async function geminiSlice(slice){
   const txt=(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join('');
   return parseAI(txt);
 }
-/* OC = versi v9: SATU model pilihan, tanpa rantai alt (saldo Sumopod tidak bocor ke model lain) */
 const OC={
   groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey},
   mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey},
@@ -933,6 +934,7 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
+/* ===== runOCR = pacing PERSIS v9 (tanpa penjaga limit tambahan) ===== */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
@@ -947,11 +949,10 @@ async function runOCR(files){
   if(S.useOR&&S.orKey) q.push('openrouter');
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
-  let useCloud=S.cloud, tw=null, geminiRetry=0, paidRetry=0;
+  let useCloud=S.cloud, tw=null;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
-    else if(m.status) setStatus('⏳ '+m.status+((m.progress&&m.progress<1)?' '+(m.progress*100|0)+'%':''));
   }};
   try{
     outer:
@@ -963,8 +964,7 @@ async function runOCR(files){
         setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
         try{
           const slices=await prepareSlices(batch[i],!!engine);
-          /* Sumopod (berbayar) SERIAL agar tidak self-rate-limit & saldo hemat */
-          const conc=(engine==='sumopod')?1:((engine&&engine!=='gemini')?2:1);
+          const conc=(engine&&engine!=='gemini')?2:1;
           const perSlice=new Array(slices.length);
           let nextIdx=0;
           const poolFn=async()=>{
@@ -972,38 +972,27 @@ async function runOCR(files){
               const si=nextIdx++; if(si>=slices.length) break;
               try{
                 let lines=null, shrink=false, attempts=0;
-                while(engine && !lines && attempts<6){
+                while(engine && !lines && attempts<4){
                   attempts++;
                   const useSlice = shrink? fitCanvas(slices[si],900) : slices[si];
                   setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
                           (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
                   try{
-                    if(engine==='gemini'){ lines=await geminiSlice(useSlice); geminiRetry=0; paidRetry=0; }
-                    else { lines=await ocSlice(engine,useSlice); await sleep(100); paidRetry=0; }
+                    if(engine==='gemini'){ lines=await geminiSlice(useSlice); await sleep(1500); }
+                    else { lines=await ocSlice(engine,useSlice); await sleep(100); }
                   }catch(e){
+                    attempts++;
                     const msg=String(e&&e.message||e);
-                    const paid=(engine==='sumopod');
                     const netErr=/fetch|network|failed/i.test(msg);
-                    const is429=/429/.test(msg);
-                    /* MESIN BAYAR: jangan gampang jatuh — coba ulang 3x dulu */
-                    if(paid){
-                      if(paidRetry<3){ paidRetry++; setStatus('⏳ '+(ENG_NAMES[engine]||'Mesin')+' sibuk/jeda, coba lagi ('+paidRetry+'/3)...'); await sleep(2000); continue; }
-                      paidRetry=0;
+                    if(attempts<=2&&netErr){ await sleep(1200); continue; }
+                    if(engine==='gemini'&&/429/.test(msg)){
+                      try{ setStatus('⏳ RPM Gemini penuh, menunggu 20s...'); await sleep(20000); lines=await geminiSlice(useSlice); }
+                      catch(e2){ runNotes.push('Gemini: limit'); engine=q.shift()||null; shrink=false; continue; }
+                    } else {
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
                       setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
                       engine=q.shift()||null; shrink=false; continue;
                     }
-                    if(attempts<=2&&netErr){ await sleep(1200); continue; }
-                    if(engine==='gemini'&&is429){
-                      geminiRetry++;
-                      if(geminiRetry<=3){ setStatus('⏳ RPM Gemini penuh, tunggu 15s ('+geminiRetry+'/3)...'); await sleep(15000); continue; }
-                      geminiRetry=0; runNotes.push('Gemini: limit'); engine=q.shift()||null; shrink=false; continue;
-                    }
-                    if(!shrink){ shrink=true; continue; }
-                    shrink=false;
-                    runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
-                    setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
-                    engine=q.shift()||null; continue;
                   }
                 }
                 if(!lines&&useCloud){
@@ -1123,7 +1112,6 @@ function fixIndo(t,style){
 }
 async function callTextOnce(engine,prompt){
   if(engine==='gemini'){
-    await paceGemini();
     const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(normGeminiModel(S.model))+':generateContent?key='+encodeURIComponent(S.geminiKey);
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.2}})});
     if(!r.ok){ const t=await r.text(); throw new Error('Gemini HTTP '+r.status+' '+t.slice(0,50)); }

@@ -204,7 +204,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: request serial (tidak paralel) agar tidak self-rate-limit & saldo tidak boros; setiap segmen dibatasi percobaan agar tidak stuck.</div>
+<div class="hint">Urutan otomatis: <b>Gemini → Groq → Mistral → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Hemat</b>: nyalakan mesin gratis; Sumopod OFF. • <b>Smut</b>: tambah Sumopod ON (penambal akhir). • <b>Ngebut</b>: Sumopod ON saja + segmen 5000.<br>• <b>Sumopod berbayar</b>: satu model pilihan (seperti v9, saldo tidak bocor ke model lain); error sementara dicoba ulang 3× sebelum pindah, jadi tidak gampang jatuh ke offline.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
@@ -758,7 +758,6 @@ function buildPrompt(){
 function blobToBase64(b){ return new Promise((res,rej)=>{ const fr=new FileReader();
   fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(b); }); }
 function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,'image/jpeg',q||0.8)); }
-/* perkecil canvas ke lebar w (dipakai saat retry respons rusak) */
 function fitCanvas(src,w){ if(src.width<=w)return src; const h=Math.round(src.height*w/src.width); const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(src,0,0,w,h); return c; }
 
 const geminiTimes=[];
@@ -822,41 +821,28 @@ async function geminiSlice(slice){
   const txt=(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join('');
   return parseAI(txt);
 }
+/* OC = versi v9: SATU model pilihan, tanpa rantai alt (saldo Sumopod tidak bocor ke model lain) */
 const OC={
-  groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey,alt:['meta-llama/llama-4-scout-17b-16e-instruct','llama-3.2-90b-vision-preview']},
-  mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey,alt:['pixtral-large-latest','pixtral-12b']},
-  openrouter:{base:()=>'https://openrouter.ai/api/v1',model:()=>S.orModel,key:()=>S.orKey,alt:['qwen/qwen-2-vl-7b-instruct:free','meta-llama/llama-3.2-11b-vision-instruct:free']},
-  sumopod:{base:()=>(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,''),model:()=>S.sumoModel,key:()=>S.sumoKey,cors:()=>S.sumoCors,alt:['openai/gpt-5.4','anthropic/claude-sonnet-4-6','gemini/gemini-3-flash-preview']}
+  groq:{base:()=>'https://api.groq.com/openai/v1',model:()=>S.groqModel,key:()=>S.groqKey},
+  mistral:{base:()=>'https://api.mistral.ai/v1',model:()=>S.mistralModel,key:()=>S.mistralKey},
+  openrouter:{base:()=>'https://openrouter.ai/api/v1',model:()=>S.orModel,key:()=>S.orKey},
+  sumopod:{base:()=>(S.sumoBase||'https://ai.sumopod.com/v1').replace(/\/+$/,''),model:()=>S.sumoModel,key:()=>S.sumoKey,cors:()=>S.sumoCors}
 };
 async function ocSlice(name,slice){
   const cfg=OC[name];
   const b64=await blobToBase64(await canvasToBlob(slice,0.8));
   let url=cfg.base()+'/chat/completions';
-  const alreadyProxy=!!(cfg.cors&&cfg.cors());
-  if(alreadyProxy) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(name==='openrouter') headers['X-Title']='Rigel OCR';
-  const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
-  let lastErr=null;
-  for(const mm of models){
-    const body=JSON.stringify({model:mm,temperature:0.1,
+  const r=await fetch(url,{method:'POST',headers,
+    body:JSON.stringify({model:cfg.model(),temperature:0.15,
       messages:[{role:'user',content:[{type:'text',text:buildPrompt()},
-        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]});
-    let r;
-    try{ r=await fetch(url,{method:'POST',headers,body}); }
-    catch(e){
-      if(alreadyProxy){ lastErr=e; continue; }
-      try{ r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{method:'POST',headers,body}); }
-      catch(e2){ lastErr=e2; continue; }
-    }
-    if(!r.ok){ const t=await r.text(); lastErr=new Error(name+' HTTP '+r.status+' '+t.slice(0,50));
-      if(/401|403/.test(String(r.status))) throw lastErr;
-      continue; }
-    calls[name]=(calls[name]||0)+1;
-    const j=await r.json();
-    return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
-  }
-  throw lastErr||new Error(name+' gagal');
+        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+  if(!r.ok){ const t=await r.text(); throw new Error(name+' HTTP '+r.status+' '+t.slice(0,50)); }
+  calls[name]=(calls[name]||0)+1;
+  const j=await r.json();
+  return parseAI((((j.choices||[])[0]||{}).message||{}).content||'');
 }
 function cloudLang(){
   if(S.langs.kor)return 'korean'; if(S.langs.jpn)return 'japanese';
@@ -961,7 +947,7 @@ async function runOCR(files){
   if(S.useOR&&S.orKey) q.push('openrouter');
   if(S.useSumo&&S.sumoKey) q.push('sumopod');
   let engine=q.length?q.shift():null;
-  let useCloud=S.cloud, tw=null, geminiRetry=0;
+  let useCloud=S.cloud, tw=null, geminiRetry=0, paidRetry=0;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{
     if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%');
@@ -977,7 +963,7 @@ async function runOCR(files){
         setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
         try{
           const slices=await prepareSlices(batch[i],!!engine);
-          /* Sumopod (berbayar) SERIAL agar tidak self-rate-limit & saldo hemat; lainnya paralel 2 */
+          /* Sumopod (berbayar) SERIAL agar tidak self-rate-limit & saldo hemat */
           const conc=(engine==='sumopod')?1:((engine&&engine!=='gemini')?2:1);
           const perSlice=new Array(slices.length);
           let nextIdx=0;
@@ -985,31 +971,33 @@ async function runOCR(files){
             while(!cancelled){
               const si=nextIdx++; if(si>=slices.length) break;
               try{
-                let lines=null, shrink=false, transientRetry=0, attempts=0;
-                /* batas percobaan per segmen agar TIDAK pernah stuck/loop tak berakhir */
+                let lines=null, shrink=false, attempts=0;
                 while(engine && !lines && attempts<6){
                   attempts++;
                   const useSlice = shrink? fitCanvas(slices[si],900) : slices[si];
                   setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+
                           (engine?' ('+(ENG_NAMES[engine]||engine)+')':useCloud?' (cloud)':' (offline)'));
                   try{
-                    if(engine==='gemini'){ lines=await geminiSlice(useSlice); geminiRetry=0; }
-                    else { lines=await ocSlice(engine,useSlice); }
+                    if(engine==='gemini'){ lines=await geminiSlice(useSlice); geminiRetry=0; paidRetry=0; }
+                    else { lines=await ocSlice(engine,useSlice); await sleep(100); paidRetry=0; }
                   }catch(e){
                     const msg=String(e&&e.message||e);
-                    const auth=/401|403|invalid api key|unauthorized|402|insufficient/i.test(msg);
-                    const transient=/429|500|502|503|timeout|network|failed|fetch/i.test(msg);
-                    if(auth){
-                      runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
-                      setStatus('⚠ '+(ENG_NAMES[engine]||engine)+' key/saldo ditolak — ganti mesin...');
-                      engine=q.shift()||null; shrink=false; transientRetry=0; continue;
-                    }
-                    if(transient){
-                      if(transientRetry<2){ transientRetry++; setStatus('⏳ '+(ENG_NAMES[engine]||engine)+' sibuk/jeda, tunggu 2s ('+transientRetry+'/2)...'); await sleep(2000); continue; }
-                      transientRetry=0;
+                    const paid=(engine==='sumopod');
+                    const netErr=/fetch|network|failed/i.test(msg);
+                    const is429=/429/.test(msg);
+                    /* MESIN BAYAR: jangan gampang jatuh — coba ulang 3x dulu */
+                    if(paid){
+                      if(paidRetry<3){ paidRetry++; setStatus('⏳ '+(ENG_NAMES[engine]||'Mesin')+' sibuk/jeda, coba lagi ('+paidRetry+'/3)...'); await sleep(2000); continue; }
+                      paidRetry=0;
                       runNotes.push((ENG_NAMES[engine]||engine)+': '+msg.slice(0,50));
                       setStatus('⚠ '+msg+(q.length?' — ganti mesin...':''));
                       engine=q.shift()||null; shrink=false; continue;
+                    }
+                    if(attempts<=2&&netErr){ await sleep(1200); continue; }
+                    if(engine==='gemini'&&is429){
+                      geminiRetry++;
+                      if(geminiRetry<=3){ setStatus('⏳ RPM Gemini penuh, tunggu 15s ('+geminiRetry+'/3)...'); await sleep(15000); continue; }
+                      geminiRetry=0; runNotes.push('Gemini: limit'); engine=q.shift()||null; shrink=false; continue;
                     }
                     if(!shrink){ shrink=true; continue; }
                     shrink=false;
@@ -1146,26 +1134,13 @@ async function callTextOnce(engine,prompt){
   }
   const cfg=OC[engine];
   let url=cfg.base()+'/chat/completions';
-  const alreadyProxy=!!(cfg.cors&&cfg.cors());
-  if(alreadyProxy) url='https://corsproxy.io/?url='+encodeURIComponent(url);
+  if(cfg.cors&&cfg.cors()) url='https://corsproxy.io/?url='+encodeURIComponent(url);
   const headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg.key()};
   if(engine==='openrouter') headers['X-Title']='Rigel OCR';
-  const models=[cfg.model()].concat(cfg.alt||[]).filter((v,i,a)=>v&&a.indexOf(v)===i);
-  let lastErr=null;
-  for(const mm of models){
-    const body=JSON.stringify({model:mm,temperature:0.2,messages:[{role:'user',content:prompt}]});
-    let r;
-    try{ r=await fetch(url,{method:'POST',headers,body}); }
-    catch(e){
-      if(alreadyProxy){ lastErr=e; continue; }
-      try{ r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{method:'POST',headers,body}); }
-      catch(e2){ lastErr=e2; continue; }
-    }
-    if(!r.ok){ lastErr=new Error(engine+' HTTP '+r.status); if(/401|403/.test(String(r.status)))throw lastErr; continue; }
-    const j=await r.json();
-    return ((((j.choices||[])[0]||{}).message||{}).content||'');
-  }
-  throw lastErr||new Error(engine+' gagal');
+  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model:cfg.model(),temperature:0.2,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok){ const t=await r.text(); throw new Error(engine+' HTTP '+r.status+' '+t.slice(0,50)); }
+  const j=await r.json();
+  return ((((j.choices||[])[0]||{}).message||{}).content||'');
 }
 function parseNumbered(raw){
   const map={};

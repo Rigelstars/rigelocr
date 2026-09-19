@@ -86,6 +86,14 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 #tourCard .row .sp{flex:1;font-size:12px;color:var(--otx);opacity:.7}
 .tbtn{padding:9px 12px;border-radius:10px;background:var(--seg);color:var(--tx);border:1px solid var(--segB);font-size:12px;font-weight:700;cursor:pointer}
 .tbtnp{padding:9px 14px;border-radius:10px;background:var(--pri);color:var(--priTx);border:none;font-size:12px;font-weight:800;cursor:pointer}
+/* Dialog donasi */
+#donateOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;display:none;align-items:flex-start;justify-content:center;padding:20px}
+#donateOverlay.show{display:flex}
+.donatePanel{background:var(--obg);border:1px solid var(--segB);border-radius:16px;max-width:420px;width:100%;margin-top:40px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.donateHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.donateBack{background:var(--seg);color:var(--tx);border:1px solid var(--segB);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;cursor:pointer}
+.donateTitle{font-size:16px;font-weight:800;color:var(--otx);flex:1}
+.donateLink{display:block;background:var(--inpBg);border:1px solid var(--segB);border-radius:10px;padding:10px;font-family:monospace;font-size:12px;color:var(--otx);word-break:break-all;margin:8px 0;text-decoration:none}
 </style>
 </head>
 <body>
@@ -351,6 +359,19 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <button class="primary danger" style="max-width:260px;margin-top:16px" onclick="clearHist()">🗑 Bersihkan Riwayat</button>
 </main>
 
+<div id="donateOverlay" onclick="if(event.target===this)closeDonate()">
+  <div class="donatePanel">
+    <div class="donateHead">
+      <button class="donateBack" onclick="closeDonate()">← Kembali</button>
+      <div class="donateTitle">💰 Donate Me</div>
+    </div>
+    <div class="hint" style="margin:0 0 6px">Dukung pengembangan RigelOCR. Bila tombol buka tidak bekerja di dalam aplikasi (APK), salin link lalu buka di browser Chrome.</div>
+    <a class="donateLink" id="donateLink" href="#" target="_blank" rel="noopener"></a>
+    <button class="primary" style="margin-top:6px" onclick="donateOpen()">🌐 Buka di Browser</button>
+    <button class="secondary" onclick="donateCopy()">📋 Salin Link</button>
+  </div>
+</div>
+
 <div id="tourOverlay" hidden></div>
 <div id="spot"></div>
 <div id="tourCard">
@@ -426,11 +447,16 @@ function setSegPreset(v){ setVal('setSegH',v); }
 function setRtl(v){ S.rtl=v; persist(); paintRtl(); }
 function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
 
+/* ===== DONASI (dialog dalam aplikasi + tombol kembali) ===== */
 function openDonate(){
   const u=(S.donate||DEFAULT_DONATE||'').trim();
   if(!u){ alert('Link donasi belum diisi. Isi dulu di ⚙ Pengaturan → bagian Donasi.'); return; }
-  window.open(u,'_blank');
+  const a=$('donateLink'); a.href=u; a.textContent=u;
+  $('donateOverlay').classList.add('show');
 }
+function closeDonate(){ $('donateOverlay').classList.remove('show'); }
+function donateOpen(){ const u=$('donateLink').href; window.open(u,'_blank'); }
+function donateCopy(){ const u=$('donateLink').textContent; try{navigator.clipboard.writeText(u); alert('✅ Link donasi tersalin! Tempel di browser.');}catch(e){ prompt('Salin link donasi:',u); } }
 
 function onModelSel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return; if(sel.value==='__manual'){ inp.hidden=false; inp.focus(); } else { inp.hidden=true; inp.value=sel.value; } }
 function getModel(engine){ const sel=$('sel_'+engine), inp=$('man_'+engine); if(!sel)return ''; if(sel.value==='__manual')return (inp&&inp.value||'').trim(); return sel.value; }
@@ -934,7 +960,6 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
-/* ===== runOCR = pacing PERSIS v9 (tanpa penjaga limit tambahan) ===== */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;

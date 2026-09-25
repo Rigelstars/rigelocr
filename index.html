@@ -162,6 +162,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 </div>
 </div>
 <div id="netInfo" class="hint" style="text-align:center;margin:8px 0"></div>
+<div class="hint" style="text-align:center">💡 Di APK yang tidak bisa centang banyak gambar: pakai <b>📦 ZIP</b> (satu file zip berisi semua gambar).</div>
 <div id="progWrap" hidden>
 <div class="spinner"></div>
 <div id="progText">Gambar 1/1, segmen 1/1</div>
@@ -743,7 +744,6 @@ async function pingModel(engine,model,ms=15000){
   const r=await fetchWithTimeout(cfg.base()+'/chat/completions',{method:'POST',headers,body:JSON.stringify({model:model,messages:[{role:'user',content:'ping'}]})},ms);
   if(!r.ok)throw new Error('HTTP '+r.status);
 }
-/* vision ping: memastikan model benar-benar bisa melihat gambar (untuk OCR) */
 async function pingVision(engine,model,ms=15000){
   if(!model) throw new Error('Invalid model name');
   if(engine==='gemini'){
@@ -769,7 +769,6 @@ async function testOC(engine){
   catch(e){ alert('❌ '+errCode(e.message||e)); }
   finally{ setTesting(false); }
 }
-/* ambil daftar model HIDUP langsung dari provider */
 async function loadProviderModels(engine){
   if(testing)return; setTesting(true);
   try{
@@ -919,41 +918,44 @@ function clearResults(){ results=[];updateOutput();setStatus('🗑 Hasil dihapus
 function clearTrans(){ $('trOutput').value='';$('trOutput').hidden=true;$('trActions').hidden=true;setTrStatus('🗑 Terjemahan dihapus.'); }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 const LEG={bubble:'legend_bubble',box:'legend_box',sfx:'legend_sfx',outside:'legend_outside'};
+
+/* ===== UNDUH TXT: 4 tahap fallback (folder → Share → unduh → clipboard) ===== */
 async function downloadTxt(kind){
   const text=(kind==='ocr'?outputBox.value:$('trOutput').value)||'';
   if(!text){alert('Tidak ada teks untuk diunduh.');return;}
   const name='rigelocr-'+kind+'-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.txt';
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  const file=new File([blob],name,{type:'text/plain'});
   const notify=m=>{ if(kind==='ocr')setStatus(m); else setTrStatus(m); };
   if(window.showSaveFilePicker){
     try{
       const h=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Dokumen teks',accept:{'text/plain':['.txt']}}]});
-      const w=await h.createWritable();await w.write(blob);await w.close();
-      notify('✅ TXT tersimpan di folder pilihan.');return;
+      const w=await h.createWritable(); await w.write(blob); await w.close();
+      notify('✅ TXT tersimpan di folder pilihan.'); return;
     }catch(e){ if(e&&e.name==='AbortError')return; }
   }
-  if(IS_WEBVIEW){
+  if(navigator.canShare&&navigator.share){
+    try{
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:name});
+        notify('✅ TXT disimpan lewat menu Share.'); return;
+      }
+    }catch(e){ if(e&&e.name==='AbortError')return; }
+  }
+  if(!IS_WEBVIEW){
     try{
       const url=URL.createObjectURL(blob);
-      window.open(url,'_blank');
-      try{await navigator.clipboard.writeText(text);}catch(e2){}
-      notify('📄 TXT dibuka di tab baru + disalin ke clipboard.');
-      setTimeout(()=>URL.revokeObjectURL(url),60000);return;
+      const a=document.createElement('a'); a.href=url; a.download=name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),10000);
+      notify('✅ TXT diunduh ke folder Unduhan/Downloads.'); return;
     }catch(e){}
-    try{await navigator.clipboard.writeText(text);notify('⚠ Teks disalin ke clipboard.');return;}catch(e){ prompt('Salin teks manual:',text); return; }
   }
   try{
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url),10000);
-    notify('✅ TXT diunduh ke folder Unduhan/Downloads.');return;
-  }catch(e){}
-  try{
-    const url=URL.createObjectURL(blob);window.open(url,'_blank');
-    notify('📄 TXT dibuka di tab baru — menu ⋮ → Download/Simpan.');
-    setTimeout(()=>URL.revokeObjectURL(url),60000);return;
-  }catch(e){}
-  try{await navigator.clipboard.writeText(text);notify('⚠ Teks disalin ke clipboard.');}catch(e){prompt('Salin teks manual:',text);}
+    await navigator.clipboard.writeText(text);
+    alert('📋 APK (WebView) tidak mendukung unduhan file langsung.\n\nTeks sudah DISALIN ke clipboard — tempel (paste) di aplikasi Catatan / Google Docs / Word, lalu simpan sebagai .txt.\n\nTips: pakai browser Chrome, atau build APK lewat PWABuilder, agar bisa unduh langsung & pilih folder.');
+    notify('⚠ Teks disalin ke clipboard (APK tidak bisa unduh langsung).');
+  }catch(e){ prompt('Salin teks manual di bawah ini:',text); }
 }
 
 function unescapeAI(s){ if(typeof s!=='string')return ''; return s.replace(/\\n/g,'\n').replace(/\\r/g,'').replace(/\\t/g,'\t').replace(/\\"/g,'"').replace(/\\\\/g,'\\'); }

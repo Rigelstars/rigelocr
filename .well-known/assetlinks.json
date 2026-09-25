@@ -1,1 +1,12 @@
-
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.rigelstars.twa",
+      "sha256_cert_fingerprints": [
+        "8F:3D:21:C4:5A:5:0C:3A:6B:9B:6:5E:E3:D8:9C:A4:34:FE:1C:F8:C0:EE:7E:16:D1:F6:4B:B0:2A:23:3:68"
+      ]
+    }
+  }
+]

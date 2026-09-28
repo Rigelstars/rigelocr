@@ -230,11 +230,11 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan: <b>Gemini → Groq → Mistral → HuggingFace → OpenRouter → Sumopod</b> → cloud → offline.<br>• Anti-stuck: watchdog 90 detik/segmen; mesin overload di-retry 3× lalu cooldown 45 detik.<br>• Semua kejadian (limit, saldo habis, key salah, model 404, jaringan) ditampilkan jelas di baris status saat OCR.</div>
+<div class="hint">Urutan: <b>Gemini → Groq → Mistral → HuggingFace → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Anti-429 otomatis</b>: saat kena limit, paralel turun sendiri & jeda menaik; cooldown 60 detik lalu pindah mesin.<br>• Tips hemat kuota gratis: nyalakan ≥2 mesin gratis agar limit = pindah, bukan menunggu.<br>• <b>⚡ Sumopod</b>: berbayar; retry 5×/segmen agar saldo hemat.</div>
 
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza..."></fieldset>
-<div class="hint">Gratis & lifetime: <b>aistudio.google.com/api-keys</b>.</div>
+<div class="hint">Gratis & lifetime: <b>aistudio.google.com/api-keys</b>. Kuota gratis: per-menit & per-hari (reset otomatis).</div>
 <label>Model Gemini</label>
 <select id="sel_gemini" onchange="onModelSel('gemini')">
 <option value="gemini-2.5-flash">Gemini 2.5 Flash (default)</option>
@@ -344,7 +344,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <button onclick="setSegPreset(4000)">4000</button>
 <button onclick="setSegPreset(5000)">5000 (paling cepat)</button>
 </div>
-<div class="hint">💡 Segmen 5000 = lebih sedikit request → OCR lebih cepat (cocok dipasangkan dengan Mode Cepat).</div>
+<div class="hint">💡 Segmen 5000 = lebih sedikit request → lebih hemat kuota gratis & lebih cepat.</div>
 
 <h3>⚙ Cadangan & penghematan:</h3>
 <div class="grid2">
@@ -355,7 +355,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="fast" checked> ⚡ Mode cepat</label>
 </div>
 <fieldset><legend>API Key OCR.space (opsional)</legend><input id="setKey" value="helloworld"></fieldset>
-<div class="hint"><b>💸 Mode hemat</b>: gambar ≤1024 & kualitas 0.65 → token turun ±35–40%.<br><b>⚡ Mode cepat</b>: gambar ≤896 & kualitas 0.6, paralel 3 segmen, timeout AI 30 detik → OCR jauh lebih cepat. Matikan bila butuh akurasi maksimal.<br>Cloud/offline hanya cadangan bila semua AI gagal.</div>
+<div class="hint"><b>💸 Mode hemat</b>: gambar ≤1024 & kualitas 0.65 → token turun ±35–40%.<br><b>⚡ Mode cepat</b>: gambar ≤896 & kualitas 0.6, paralel hingga 3, timeout AI 30 detik. Bila sering kena 429 Gemini, matikan mode cepat atau tambah mesin gratis kedua.<br>Cloud/offline hanya cadangan bila semua AI gagal.</div>
 
 <h3>🔐 Backup & Restore:</h3>
 <button class="mini" onclick="backupData()">💾 Backup</button>
@@ -547,13 +547,13 @@ function setTheme(t){ S.theme=t; persist(); document.body.setAttribute('data-the
 function toggleThemeBar(){ $('themeBar').hidden=!$('themeBar').hidden; updateThemeUI(); }
 function updateThemeUI(){ const t=THEMES.find(x=>x[0]===S.theme); const el=$('themeLbl'); if(el&&t)el.textContent=t[1]; document.querySelectorAll('.sw').forEach(b=>b.classList.toggle('active',b.getAttribute('data-t')===S.theme)); }
 function setSmut(v){ S.smutMode=!!v; persist(); updateSmutHint(); }
-function updateSmutHint(){ const el=$('smutHint'); if(!el)return; el.textContent=S.smutMode?'ON: konteks fiksi profesional (smut/gore) agar tidak ditolak; Sumopod disarankan ON sebagai penambal.':'OFF: prompt tetap menerima gore/smut sebagai fiksi, tanpa konteks tambahan.'; }
+function updateSmutHint(){ const el=$('smutHint'); if(!el)return; el.textContent=S.smutMode?'ON: konteks fiksi profesional (smut/gore) agar tidak ditolak; Sumopod disarankan ON sebagai penambal. (TIDAK memengaruhi kecepatan/limit.)':'OFF: prompt tetap menerima gore/smut sebagai fiksi. Nyalakan bila sering muncul penolakan 🚫.'; }
 
 const TOUR=[
 {screen:'home',sel:'.hero-title',t:'Selamat datang 👋',b:'Rigel OCR mengambil & menerjemahkan teks komik.'},
 {screen:'home',sel:'#themeBtn',t:'Ganti tema 🎨',b:'Ketuk ikon palet untuk memilih warna.'},
 {screen:'home',sel:'#ocrCard',t:'OCR Komik 📖',b:'Dari kartu ini kamu mulai mengambil teks.'},
-{screen:'ocr',sel:'#smutMode',t:'Mode dewasa 🔞',b:'Centang bila komikmu banyak adegan smut/gore.'},
+{screen:'ocr',sel:'#smutMode',t:'Mode dewasa 🔞',b:'Hanya menambah konteks fiksi pada prompt agar tidak ditolak. Tidak memengaruhi kecepatan.'},
 {screen:'ocr',sel:'.pickRow',t:'Pilih gambar 🖼📦',b:'Galeri, File, atau ZIP. PROSES & Kosongkan berjejer di bawah.'},
 {screen:'ocr',sel:'#gearBtn',t:'Isi API key ⚙',b:'Sebelum OCR, isi key mesin AI di Pengaturan.'},
 {screen:'settings',sel:'#grpGemini',t:'Key Gemini 🆓',b:'Tempel key gratis, atau 🔍 Auto-deteksi model.'},
@@ -680,7 +680,7 @@ function errCode(m){
   if(/401|403/.test(m))return 'Key salah/kedaluwarsa/izin token kurang (401/403). Untuk HF pakai token READ.';
   if(/402/.test(m))return 'Saldo/kredit habis (402). Isi saldo.';
   if(/404/.test(m))return 'Model tidak ada di provider ini (404). Tekan 🔄 Muat model lalu 🔍 Auto-deteksi.';
-  if(/429/.test(m))return 'Rate-limit (429). Tunggu sebentar.';
+  if(/429/.test(m))return 'Kuota gratis penuh (429). Tunggu sebentar atau tambah mesin lain.';
   if(/503|502|overloaded/.test(m))return 'Server provider overload (503/502). Coba lagi.';
   if(/400/.test(m))return 'Request ditolak (400): model tidak didukung atau izin token kurang.';
   if(/timeout/i.test(m))return 'Timeout — server lambat/sinyal lemah. Coba lagi.';
@@ -1143,6 +1143,11 @@ function autoTag(t){
 }
 const ENG_NAMES={gemini:'Gemini',groq:'Groq',mistral:'Mistral',hf:'HuggingFace',openrouter:'OpenRouter',sumopod:'Sumopod'};
 
+/* ===== runOCR dengan AUTO-THROTTLE ANTI-429 =====
+   - Paralel otomatis turun tiap muncul 429 (3→2→1)
+   - Backoff menaik: Gemini 3s/6s/12s, lainnya 2s/4s/6s
+   - Cooldown 60s setelah retry habis; bila 429 Gemini 3× beruntun → hint kuota harian
+   - Concurrency Gemini dibatasi maks 2 */
 async function runOCR(files){
   results=[]; runNotes=[]; calls={}; updateOutput();
   cancelled=false; processing=true;
@@ -1150,7 +1155,7 @@ async function runOCR(files){
   pickBtn.disabled=true; pickBtnFM.disabled=true; refreshQueue();
   progWrap.hidden=false; setProg('Gambar 1/'+files.length+', menyiapkan...');
   if(netQuality==='poor') setStatus('🔴 Sinyal lemah — gambar diperkecil & proses serial.');
-  else if(S.fastMode) setStatus('⚡ Mode cepat aktif — paralel '+(netQuality==='good'?3:2)+' segmen, gambar ringan.');
+  else if(S.fastMode) setStatus('⚡ Mode cepat aktif — paralel '+(netQuality==='good'?3:2)+' (akan turun otomatis bila kena limit 429).');
   const q=[];
   if(S.useGemini&&S.geminiKey)q.push('gemini');
   if(S.useGroq&&S.groqKey)q.push('groq');
@@ -1161,10 +1166,13 @@ async function runOCR(files){
   let engine=q.length?q.shift():null;
   let useCloud=S.cloud, tw=null;
   const cooldown={};
+  let curConc = netQuality==='good' ? (S.fastMode?3:2) : (netQuality==='fair' ? (S.fastMode?2:1) : 1);
+  let gem429streak=0, quotaHinted=false;
   const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
   const opts={ logger:m=>{ if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%'); } };
   const inCooldown=()=> engine && cooldown[engine] && cooldown[engine]>Date.now();
   const say=t=>setStatus(t);
+  const throttle=()=>{ if(curConc>1){ curConc--; say('🐢 Auto-limit: paralel diturunkan jadi '+curConc+' agar tidak memukul kuota.'); } };
   try{
     outer:
     for(let b=0;b<files.length;b+=S.batch){
@@ -1176,7 +1184,7 @@ async function runOCR(files){
         setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
         try{
           const slices=await prepareSlices(batch[i],!!engine);
-          const conc = netQuality==='good' ? (S.fastMode?3:2) : (netQuality==='fair' ? (S.fastMode?2:1) : 1);
+          const conc = engine==='gemini' ? Math.min(curConc,2) : curConc;
           const perSlice=new Array(slices.length); let nextIdx=0;
           const poolFn=async()=>{
             while(!cancelled){
@@ -1197,13 +1205,14 @@ async function runOCR(files){
                     const en=ENG_NAMES[engine]||engine;
                     const auth=/401|403|invalid api key|unauthorized/i.test(msg);
                     const noCredit=/402|insufficient|credit/i.test(msg);
-                    const overload=/429|503|502|overloaded|too many|quota|rate/i.test(msg);
+                    const is429=/429|rate|quota|too many/i.test(msg);
+                    const overload=/429|503|502|overloaded|quota|rate|too many/i.test(msg);
                     const netErr=/fetch|network|failed|timeout/i.test(msg);
                     const refusal=/prosa|menolak|SAFETY|PROHIBITED|BLOCKLIST|IMAGE_SAFETY/i.test(msg);
                     const parseFail=/bukan JSON|kosong/i.test(msg);
                     const notFound=/404|not found/i.test(msg);
                     if(engine==='sumopod'){
-                      if(auth||noCredit){ say('💰 Sumopod: key/saldo ditolak ('+(noCredit?'saldo habis':'key salah')+') — ganti mesin.'); runNotes.push('Sumopod: '+(noCredit?'saldo habis':'key ditolak')); engine=q.shift()||null; shrink=false; continue; }
+                      if(auth||noCredit){ say('💰 Sumopod: key/saldo ditolak — ganti mesin.'); runNotes.push('Sumopod: '+(noCredit?'saldo habis':'key ditolak')); engine=q.shift()||null; shrink=false; continue; }
                       if(sumoRetry<5){
                         sumoRetry++;
                         say(overload? ('⏳ Sumopod kena limit/sibuk — coba lagi ('+sumoRetry+'/5).')
@@ -1220,21 +1229,45 @@ async function runOCR(files){
                     if(noCredit){ say('💰 Saldo/kredit '+en+' habis (402) — mesin dilewati.'); runNotes.push(en+': saldo habis'); engine=q.shift()||null; shrink=false; continue; }
                     if(notFound){ say('❓ Model '+en+' tidak tersedia (404) — mesin dilewati. Coba 🔄 Muat model di Pengaturan.'); runNotes.push(en+': model 404'); engine=q.shift()||null; shrink=false; continue; }
                     if(engine==='gemini'&&overload){
-                      if(gemRetry<3){ gemRetry++; say(/429/.test(msg)? ('⏳ Gemini kena limit kecepatan (429) — tunggu 3 detik, coba lagi ('+gemRetry+'/3).') : ('🌐 Server Gemini sedang overload (503) — tunggu 3 detik, coba lagi ('+gemRetry+'/3).')); await sleep(3000); continue; }
-                      cooldown[engine]=Date.now()+45000;
-                      if(q.length){ say('⛔ Gemini cooldown 45 detik — pindah ke mesin berikutnya.'); runNotes.push('Gemini: overload → ganti mesin'); engine=q.shift(); shrink=false; continue; }
+                      if(gemRetry<3){
+                        gemRetry++;
+                        const waitMs=Math.min(12000,3000*gemRetry);
+                        throttle();
+                        say(is429? ('⏳ Kuota gratis Gemini penuh (429) — tunggu '+Math.round(waitMs/1000)+'s, coba lagi ('+gemRetry+'/3).')
+                                 : ('🌐 Server Gemini overload (503) — tunggu '+Math.round(waitMs/1000)+'s, coba lagi ('+gemRetry+'/3).'));
+                        await sleep(waitMs);
+                        continue;
+                      }
+                      cooldown[engine]=Date.now()+60000;
+                      if(is429){
+                        gem429streak++;
+                        if(gem429streak>=3&&!quotaHinted){
+                          quotaHinted=true;
+                          say('💡 Gemini 429 berulang: kuota gratis per-menit/per-hari kemungkinan habis. Tambah mesin gratis lain (Mistral/HuggingFace/OpenRouter), pakai Sumopod, atau tunggu reset kuota. Proses lanjut pakai cadangan.');
+                          runNotes.push('Gemini: kuota gratis habis (429 berulang)');
+                        }
+                      }
+                      if(q.length){ say('⛔ Gemini cooldown 60 detik — pindah ke mesin berikutnya.'); runNotes.push('Gemini: overload → ganti mesin'); engine=q.shift(); shrink=false; continue; }
                       say('⛔ Gemini cooldown & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
                       runNotes.push('Gemini: overload → cadangan'); break;
                     }
                     if(overload){
-                      if(freeRetry<3){ freeRetry++; say(/429/.test(msg)? ('⏳ '+en+' kena limit kecepatan (429) — tunggu 2 detik, coba lagi ('+freeRetry+'/3).') : ('🌐 Server '+en+' overload (503/502) — tunggu 2 detik, coba lagi ('+freeRetry+'/3).')); await sleep(2000); continue; }
-                      cooldown[engine]=Date.now()+45000;
-                      if(q.length){ say('⛔ '+en+' cooldown 45 detik — pindah ke mesin berikutnya.'); runNotes.push(en+': overload → ganti mesin'); engine=q.shift(); shrink=false; continue; }
+                      if(freeRetry<3){
+                        freeRetry++;
+                        const waitMs=Math.min(8000,2000*freeRetry);
+                        throttle();
+                        say(is429? ('⏳ Kuota '+en+' penuh (429) — tunggu '+Math.round(waitMs/1000)+'s, coba lagi ('+freeRetry+'/3).')
+                                 : ('🌐 Server '+en+' overload (503/502) — tunggu '+Math.round(waitMs/1000)+'s, coba lagi ('+freeRetry+'/3).'));
+                        await sleep(waitMs);
+                        continue;
+                      }
+                      cooldown[engine]=Date.now()+60000;
+                      if(q.length){ say('⛔ '+en+' cooldown 60 detik — pindah ke mesin berikutnya.'); runNotes.push(en+': overload → ganti mesin'); engine=q.shift(); shrink=false; continue; }
                       say('⛔ '+en+' cooldown & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
                       runNotes.push(en+': overload → cadangan'); break;
                     }
                     if(netErr&&attempts<=2){ say('📶 Jaringan terganggu/timeout di '+en+' — coba lagi ('+attempts+'/6).'); await sleep(1200); continue; }
-                    if(refusal){ say('🚫 '+en+' menolak konten — pindah mesin.'); runNotes.push(en+': menolak/prosa'); engine=q.shift()||null; shrink=false; continue; }
+                    if(refusal){ say('🚫 '+en+' menolak konten — pindah mesin. (Coba nyalakan Mode smut/gore di layar OCR.)'); runNotes.push(en+': menolak/prosa'); engine=q.shift()||null; shrink=false; continue; }
                     if(parseFail&&!shrink){ say('🧩 Balasan '+en+' tidak valid — coba lagi dengan gambar lebih kecil.'); shrink=true; continue; }
                     if(q.length){ say('⚠ '+en+' gagal: '+msg.slice(0,60)+' — pindah mesin.'); runNotes.push(en+': '+msg.slice(0,50)); engine=q.shift(); shrink=false; continue; }
                     say('⚠ '+en+' gagal & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
@@ -1283,6 +1316,7 @@ async function runOCR(files){
     let msg=cancelled?'⏹ Dibatalkan. Hasil sementara ditampilkan.':'✅ Selesai! Total '+results.length+' teks.';
     const stat=Object.keys(calls).filter(k=>calls[k]).map(k=>(ENG_NAMES[k]||k)+' '+calls[k]).join(' • ');
     if(stat)msg+=' 📊 '+stat+'.';
+    if(quotaHinted)msg+=' 💡 Tips: tambah mesin gratis kedua atau Sumopod agar limit = pindah, bukan menunggu.';
     if(runNotes.length)msg+=' ⚠ '+runNotes.slice(0,5).join(' • ');
     msg+=' (🕘 Riwayat tersimpan)';
     setStatus(msg); updateOutput();

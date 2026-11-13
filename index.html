@@ -214,7 +214,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <textarea id="trOutput" readonly hidden></textarea>
 </main>
 <main id="screen-settings" hidden>
-<h3>🤖 Mesin Vision AI (sakelar):</h3>
+<h3>🤖 Mesin Vision AI (sakelar — tersimpan otomatis):</h3>
 <div class="grid2">
 <label class="chk"><input type="checkbox" id="useGemini" checked onchange="paintEngines()"> 🆓 Gemini</label>
 <label class="chk"><input type="checkbox" id="useGroq" onchange="paintEngines()"> 🌪 Groq</label>
@@ -223,10 +223,10 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="useOR" onchange="paintEngines()"> 🔀 OpenRouter</label>
 <label class="chk"><input type="checkbox" id="useSumo" onchange="paintEngines()"> ⚡ Sumopod</label>
 </div>
-<div class="hint">Urutan OCR: <b>Gemini → Groq → Mistral → HF → OpenRouter → Sumopod</b> → offline.<br>• OCR Cloud (OCR.space) <b>dimatikan</b> karena key demo sering memunculkan pesan error yang membingungkan; hanya aktif bila kamu isi key gratis sendiri.<br>• Pindah mesin & cadangan offline selalu aktif → tidak akan ngestuck.</div>
+<div class="hint">Urutan OCR: <b>Gemini → Groq → Mistral → HF → OpenRouter → Sumopod</b> → cloud → offline.<br>• <b>Failover otomatis semua mesin</b>: model gagal/overload → coba model lain di mesin yang sama → bila tetap gagal <b>langsung pindah AI</b> (tanpa menunggu lama).<br>• Mesin yang cooldown <b>otomatis kembali</b> begitu masa cooldown lewat.<br>• <b>Auto-save</b>: semua perubahan tersimpan seketika, tidak perlu tombol Simpan.</div>
 <div id="grpGemini">
 <fieldset><legend>🔑 API Key Gemini</legend><input id="setGeminiKey" placeholder="AIza... atau AQ..."></fieldset>
-<div class="hint">Gratis & lifetime: <b>aistudio.google.com/api-keys</b>. Prompt kini selalu menyertakan konteks fiksi profesional → menolak/prosa sangat berkurang.</div>
+<div class="hint">Gratis & lifetime: <b>aistudio.google.com/api-keys</b>.</div>
 <label>Model Gemini</label>
 <select id="sel_gemini" onchange="onModelSel('gemini')">
 <option value="gemini-2.5-flash">Gemini 2.5 Flash (default)</option>
@@ -236,13 +236,13 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <option value="__manual">✏️ Ketik manual...</option>
 </select>
 <input type="text" id="man_gemini" hidden placeholder="Salin ID model persis dari dashboard">
-<label class="chk"><input type="checkbox" id="gemFailover"> 🔁 Failover model Gemini (coba model lain bila gagal; OFF = langsung pindah mesin)</label>
+<label class="chk"><input type="checkbox" id="gemFailover" checked> 🔁 Failover model Gemini agresif (hop model juga saat prosa/refusal)</label>
 <button class="mini" onclick="testOC('gemini')">🩺 Tes</button>
 <button class="mini" onclick="autoDetect('gemini')">🔍 Auto-deteksi</button>
 </div>
 <div id="grpGroq" hidden>
 <fieldset><legend>🔑 API Key Groq</legend><input id="setGroqKey" placeholder="gsk_..."></fieldset>
-<div class="hint">Gratis & lifetime: <b>console.groq.com/keys</b>.</div>
+<div class="hint">Gratis & lifetime: <b>console.groq.com/keys</b>. Model vision dirotasi otomatis bila 400/404.</div>
 <label>Model Groq</label>
 <select id="sel_groq" onchange="onModelSel('groq')">
 <option value="meta-llama/llama-4-scout-17b-128e-instruct">Llama-4-Scout 17B (vision)</option>
@@ -269,7 +269,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 </div>
 <div id="grpHf" hidden>
 <fieldset><legend>🔑 HuggingFace Token</legend><input id="setHfKey" placeholder="hf_..."></fieldset>
-<div class="hint">Gratis & lifetime: <b>huggingface.co/settings/tokens</b>. Pakai token tipe <b>READ</b>.</div>
+<div class="hint">Gratis & lifetime: <b>huggingface.co/settings/tokens</b>. Pakai token tipe <b>READ</b>. Bila 402 "saldo habis", token tanpa kredit inference — matikan HF atau ganti token.</div>
 <label>Model HuggingFace (vision)</label>
 <select id="sel_hf" onchange="onModelSel('hf')">
 <option value="Qwen/Qwen2-VL-7B-Instruct">Qwen2-VL-7B (default)</option>
@@ -333,14 +333,17 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 </div>
 <h3>⚙ Cadangan & penghematan:</h3>
 <div class="grid2">
-<label class="chk"><input type="checkbox" id="cloud"> OCR Cloud (isi key gratis sendiri)</label>
+<label class="chk"><input type="checkbox" id="cloud"> OCR Cloud (aktif otomatis bila key diisi)</label>
 <label class="chk"><input type="checkbox" id="confFilter" checked> Saring teks rusak</label>
 <label class="chk"><input type="checkbox" id="highAcc"> Model offline tinggi</label>
 <label class="chk"><input type="checkbox" id="hemat" checked> 💸 Mode hemat token</label>
 <label class="chk"><input type="checkbox" id="fast"> ⚡ Mode cepat</label>
 </div>
-<fieldset><legend>API Key OCR.space (opsional, untuk Cloud)</legend><input id="setKey" placeholder="isi key gratis dari ocr.space/ocrapi/freekey"></fieldset>
-<div class="hint">💡 Cloud <b>dimatikan default</b> — nyalakan hanya jika kamu sudah punya key OCR.space sendiri (key demo 'helloworld' dimatikan karena sering muncul Note error).<br>💸 Mode hemat: gambar ≤1024 & kualitas 0.7 → token turun ±30–35%.<br>⚡ Mode cepat (default OFF): lebih cepat & token lebih irit.</div>
+<fieldset><legend>API Key OCR.space (untuk Cloud)</legend><input id="setKey" placeholder="daftar gratis: ocr.space/ocrapi/freekey"></fieldset>
+<div class="hint">💡 Isi key OCR.space gratis milikmu → Cloud <b>otomatis aktif</b> sebagai cadangan sebelum offline. Key demo 'helloworld' tidak dipakai lagi.<br>💸 Mode hemat: gambar ≤1024 & kualitas 0.65 (pola v9) → kuota awet.<br>⚡ Mode cepat (OFF default): lebih cepat & token irit (cocok Sumopod).</div>
+<h3>📥 Paket bahasa offline (Tesseract):</h3>
+<button class="mini" onclick="downloadOfflineLangs()">⬇ Unduh bahasa terpilih sekarang</button>
+<div class="hint">Unduh <b>sekali</b> agar OCR offline (cadangan terakhir) langsung cepat tanpa loading lama. Bahasa mengikuti centang di bagian Bahasa bawah. Status: <span id="offlineStat">belum diunduh</span>.</div>
 <h3>🔐 Backup & Restore:</h3>
 <button class="mini" onclick="backupData()">💾 Backup</button>
 <button class="mini" onclick="backupFile()">📦 Unduh</button>
@@ -355,7 +358,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <fieldset><legend>Bubble Bulat</legend><input id="setBubble" value="()"></fieldset>
 <fieldset><legend>Bubble Kotak</legend><input id="setBox" value="[]"></fieldset>
 <fieldset><legend>SFX</legend><input id="setSfx" value="//"></fieldset>
-<fieldset><legend>Luar Bubble</legend><input id="setOutside" value=''></fieldset>
+<fieldset><legend>Luar Bubble</legend><input id="setOutside" value='"'></fieldset>
 </div>
 <fieldset><legend>Batch Size</legend><input id="setBatch" type="number" value="5"></fieldset>
 <h3>🎚 Tampilkan di Output (filter):</h3>
@@ -374,7 +377,7 @@ h3{margin:24px 0 12px;font-size:17px;color:var(--hx);font-weight:700}
 <label class="chk"><input type="checkbox" id="langChi"> Cina</label>
 </div>
 <div id="setStat" class="hint" style="text-align:center"></div>
-<button class="primary" style="max-width:220px;margin-top:16px" onclick="saveSettings()">Simpan</button>
+<button class="primary" style="max-width:220px;margin-top:16px" onclick="saveSettings(false)">✓ Selesai & kembali</button>
 </main>
 <main id="screen-history" hidden>
 <h3>🕘 Riwayat</h3>
@@ -431,17 +434,17 @@ const IS_WEBVIEW=/\bwv\b/.test(navigator.userAgent)||(navigator.userAgent.includ
 const TINY_PNG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
 const GEMINI_FALLBACK=['gemini-2.5-flash-lite','gemini-2.5-flash','gemini-2.0-flash','gemini-3.5-flash-lite'];
 const ENGINE_FALLBACK={
- groq:['meta-llama/llama-4-scout-17b-128e-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','meta-llama/llama-3.2-90b-vision-instruct','meta-llama/llama-3.2-11b-vision-instruct'],
- mistral:['pixtral-12b','pixtral-large-latest'],
+ groq:['meta-llama/llama-4-scout-17b-128e-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','meta-llama/llama-3.2-90b-vision-preview','meta-llama/llama-3.2-11b-vision-preview'],
+ mistral:['pixtral-12b','pixtral-large-latest','pixtral-12b-2409'],
  hf:['Qwen/Qwen2-VL-7B-Instruct','Qwen/Qwen2.5-VL-7B-Instruct','meta-llama/Llama-3.2-11B-Vision-Instruct'],
  openrouter:['qwen/qwen2.5-vl-72b-instruct','google/gemini-2.5-flash','meta-llama/llama-3.2-11b-vision-instruct:free'],
  sumopod:['gemini/gemini-3.1-flash-lite','gemini/gemini-2.5-flash','gemini/gemini-2.5-flash-lite','openai/gpt-4o-mini']
 };
 const DEF={
- legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'',
+ legend_bubble:'()', legend_box:'[]', legend_sfx:'//', legend_outside:'"',
  batch:5, rtl:false, theme:'pink', smutMode:false, codeMode:'symbol',
  useGemini:true, useSumo:false, useGroq:false, useMistral:false, useHf:false, useOR:false,
- geminiKey:'', model:'gemini-2.5-flash', gemFailover:false,
+ geminiKey:'', model:'gemini-2.5-flash', gemFailover:true, migratedFailover:false,
  sumoKey:'', sumoModel:'gemini/gemini-3.1-flash-lite', sumoBase:'https://ai.sumopod.com/v1', sumoCors:false,
  groqKey:'', groqModel:'meta-llama/llama-4-scout-17b-128e-instruct',
  mistralKey:'', mistralModel:'pixtral-12b',
@@ -456,14 +459,14 @@ let S=loadSettings(), results=[], cancelled=false, activeWorker=null,
  curScreen='home', pending=[], processing=false, runNotes=[], calls={},
  pickTimer=null, lastFileList=null, activeInput=null,
  translating=false, transCancel=false, tourIdx=0, revealed=[],
- netQuality='good', gemVer='v1beta';
+ netQuality='good', gemVer='v1beta', settingsWired=false;
 function loadSettings(){
  let raw={};
  try{ raw=JSON.parse(localStorage.getItem('rigelocr_v9')||'{}'); }catch(e){}
  const s=Object.assign({},DEF,raw);
  if(raw.useCode===false && !raw.codeMode) s.codeMode='none';
  if(!['symbol','none','number'].includes(s.codeMode)) s.codeMode='symbol';
- if(s.legend_outside===undefined||s.legend_outside==='"') s.legend_outside='';
+ if(!raw.migratedFailover){ s.gemFailover=true; s.migratedFailover=true; }
  return s;
 }
 function persist(){ try{localStorage.setItem('rigelocr_v9',JSON.stringify(S));}catch(e){} }
@@ -472,13 +475,14 @@ const chk=id=>{const el=$(id); return !!el&&el.checked;};
 const setChk=(id,v)=>{const el=$(id); if(el)el.checked=!!v;};
 const setVal=(id,v)=>{const el=$(id); if(el)el.value=v;};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function saySet(t){ if(setStat) setStat.textContent=t; }
 function normGeminiModel(m){
  m=(m||'').trim(); if(!m) return 'gemini-2.5-flash';
  m=m.replace(/^models\//i,'');
  if(m.includes('/')) m=m.split('/').pop();
  return m||'gemini-2.5-flash';
 }
-function setSegPreset(v){ setVal('setSegH',v); }
+function setSegPreset(v){ setVal('setSegH',v); saveSettings(true); }
 function setRtl(v){ S.rtl=v; persist(); paintRtl(); }
 function paintRtl(){ if(rtlOn)rtlOn.className=S.rtl?'active':''; if(rtlOff)rtlOff.className=S.rtl?'':'active'; }
 function setCodeMode(mode,checked){ S.codeMode=checked?mode:'symbol'; persist(); syncCodeModeUI(); updateOutput(); }
@@ -504,6 +508,22 @@ function updateNetInfo(){
 }
 if(navigator.connection){ navigator.connection.addEventListener('change',detectNetwork); }
 detectNetwork();
+function offlineLangList(){ return Object.keys(S.langs).filter(k=>S.langs[k]); }
+function refreshOfflineStat(){ const el=$('offlineStat'); if(!el)return; const ready=localStorage.getItem('rigel_offline_ready'); el.textContent = ready? ('✅ siap: '+ready) : 'belum diunduh'; }
+async function downloadOfflineLangs(){
+ const langs=offlineLangList();
+ if(!langs.length){ alert('Centang minimal satu bahasa di bagian Bahasa dulu.'); return; }
+ const joined=langs.join('+');
+ saySet('⬇ Mengunduh paket bahasa offline: '+joined+' ... (sekali saja, bisa beberapa menit)');
+ try{
+  const w=await Tesseract.createWorker(joined,1,{ logger:m=>{ if(m.progress!==undefined&&m.progress>0){ saySet('⬇ '+joined+': '+Math.round(m.progress*100)+'%'); } } });
+  await w.terminate();
+  localStorage.setItem('rigel_offline_ready',joined);
+  refreshOfflineStat();
+  saySet('✅ Paket bahasa offline tersimpan di perangkat. OCR offline kini cepat.');
+  alert('✅ Bahasa offline siap: '+joined);
+ }catch(e){ saySet('❌ Gagal unduh bahasa: '+e.message); }
+}
 function openDonate(){ const a=$('donateLink'); a.href=DEFAULT_DONATE; a.textContent=DEFAULT_DONATE; $('donateOverlay').classList.add('show'); }
 function closeDonate(){ $('donateOverlay').classList.remove('show'); }
 function donateOpen(){ window.open($('donateLink').href,'_blank'); }
@@ -530,7 +550,7 @@ const TOUR=[
 {screen:'home',sel:'#ocrCard',t:'OCR Komik 📖',b:'Dari kartu ini kamu mulai mengambil teks.'},
 {screen:'ocr',sel:'#smutMode',t:'Mode dewasa 🔞',b:'Konteks fiksi profesional agar tidak ditolak.'},
 {screen:'ocr',sel:'.pickRow',t:'Pilih gambar 🖼📦',b:'Galeri, File, atau ZIP.'},
-{screen:'ocr',sel:'#gearBtn',t:'Isi API key ⚙',b:'Sebelum OCR, isi key mesin AI di Pengaturan.'},
+{screen:'ocr',sel:'#gearBtn',t:'Isi API key ⚙',b:'Semua perubahan pengaturan tersimpan otomatis (auto-save).'},
 {screen:'settings',sel:'#grpGemini',t:'Key Gemini 🆓',b:'Tempel key gratis, atau 🔍 Auto-deteksi model.'},
 {screen:'ocr',sel:'#ocrActions',t:'Hasil & aksi 📋',b:'Copy, Hapus, Unduh TXT, Terjemahkan.'},
 {screen:'home',sel:'#transCard',t:'Terjemahan 🌐',b:'Translate via Gemini → Groq → Mistral → HF → OpenRouter.'}
@@ -578,7 +598,7 @@ function showScreen(name){
  if(histBtn)histBtn.hidden = (name==='history');
  if(backBtn)backBtn.hidden = (name==='home');
 }
-function goBack(){ if(curScreen==='settings') saveSettings(); else showScreen('home'); }
+function goBack(){ if(curScreen==='settings'){ saveSettings(true); showScreen('ocr'); } else showScreen('home'); }
 function paintEngines(){
  if(grpGemini)grpGemini.hidden=!chk('useGemini'); if(grpSumo)grpSumo.hidden=!chk('useSumo');
  if(grpGroq)grpGroq.hidden=!chk('useGroq'); if(grpMistral)grpMistral.hidden=!chk('useMistral');
@@ -603,15 +623,27 @@ function openSettings(){
  setChk('langKor',S.langs.kor); setChk('langChi',S.langs.chi_sim);
  syncModelUI('gemini'); syncModelUI('groq'); syncModelUI('mistral'); syncModelUI('hf'); syncModelUI('or'); syncModelUI('sumo');
  syncCodeModeUI(); paintEngines(); paintRtl();
+ if(!settingsWired){
+  settingsWired=true;
+  document.querySelectorAll('#screen-settings input, #screen-settings select').forEach(el=>{
+   el.addEventListener('change',()=>{
+    if(el.id==='setKey'){ const v=el.value.trim(); if(v&&v!=='helloworld'){ setChk('cloud',true); } }
+    saveSettings(true);
+    refreshOfflineStat();
+   });
+  });
+ }
+ refreshOfflineStat();
+ saySet('');
  showScreen('settings');
 }
-function saveSettings(){
+function saveSettings(silent){
  S.useGemini=chk('useGemini'); S.useSumo=chk('useSumo'); S.useGroq=chk('useGroq');
  S.useMistral=chk('useMistral'); S.useHf=chk('useHf'); S.useOR=chk('useOR');
  S.legend_bubble=val('setBubble','()'); S.legend_box=val('setBox','[]');
- S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','');
+ S.legend_sfx=val('setSfx','//'); S.legend_outside=val('setOutside','"');
  S.batch=Math.max(1,parseInt(val('setBatch','5'))||5);
- S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(getModel('gemini')); S.gemFailover=chk('gemFailover');
+ S.geminiKey=val('setGeminiKey',''); S.model=normGeminiModel(getModel('gemini')); S.gemFailover=chk('gemFailover'); S.migratedFailover=true;
  S.sumoKey=val('setSumoKey',''); S.sumoModel=getModel('sumo')||'gemini/gemini-3.1-flash-lite';
  S.sumoBase=val('setSumoBase','https://ai.sumopod.com/v1'); S.sumoCors=chk('sumoCors');
  S.groqKey=val('setGroqKey',''); S.groqModel=getModel('groq')||'meta-llama/llama-4-scout-17b-128e-instruct';
@@ -621,11 +653,13 @@ function saveSettings(){
  S.segOn=chk('segOn'); S.segH=Math.max(800,parseInt(val('setSegH','3000'))||3000);
  S.cloud=chk('cloud'); S.confFilter=chk('confFilter'); S.highAcc=chk('highAcc'); S.hemat=chk('hemat'); S.fastMode=chk('fast');
  S.apiKey=val('setKey','');
+ if(S.apiKey&&S.apiKey!=='helloworld'&&!S.cloud){ S.cloud=true; setChk('cloud',true); }
  S.inc={bubble:chk('incBubble'),box:chk('incBox'),sfx:chk('incSfx'),outside:chk('incOutside')};
  S.langs={eng:chk('langEng'),ind:chk('langInd'),jpn:chk('langJpn'),kor:chk('langKor'),chi_sim:chk('langChi')};
  if(!Object.values(S.langs).some(Boolean)) S.langs.eng=true;
- persist(); syncCodeModeUI();
- showScreen('ocr'); updateOutput();
+ persist(); syncCodeModeUI(); paintEngines(); paintRtl();
+ if(!silent){ showScreen('ocr'); }
+ updateOutput();
 }
 function backupData(){
  const code='RIGELBACKUP:'+btoa(unescape(encodeURIComponent(JSON.stringify({settings:S,history:loadHist()}))));
@@ -668,7 +702,7 @@ const OC={
 };
 const CANDIDATES={
  gemini:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.0-flash','gemini-3.5-flash-lite'],
- groq:['meta-llama/llama-4-scout-17b-128e-instruct','meta-llama/llama-4-maverick-17b-128e-instruct'],
+ groq:['meta-llama/llama-4-scout-17b-128e-instruct','meta-llama/llama-4-maverick-17b-128e-instruct','meta-llama/llama-3.2-90b-vision-preview','meta-llama/llama-3.2-11b-vision-preview'],
  mistral:['pixtral-12b','pixtral-large-latest'],
  hf:['Qwen/Qwen2-VL-7B-Instruct','Qwen/Qwen2.5-VL-7B-Instruct','meta-llama/Llama-3.2-11B-Vision-Instruct'],
  openrouter:['qwen/qwen2.5-vl-72b-instruct','google/gemini-2.5-flash','meta-llama/llama-3.2-11b-vision-instruct:free'],
@@ -739,7 +773,7 @@ async function pingOnce(engine,model,ms){
 async function pingModel(engine,model,ms){
  if(engine==='gemini'){
   const first=normGeminiModel(model);
-  const models=S.gemFailover?[first].concat(GEMINI_FALLBACK.filter(m=>m!==first)):[first];
+  const models=[first].concat(GEMINI_FALLBACK.filter(m=>m!==first));
   let lastErr=null;
   for(const m of models){
    try{ return await pingOnce('gemini',m,ms); }
@@ -812,7 +846,8 @@ async function loadProviderModels(engine){
   const om=document.createElement('option'); om.value='__manual'; om.textContent='✏️ Ketik manual...'; sel.appendChild(om);
   if(cur&&ids.includes(cur)) sel.value=cur; else sel.value=ids[0];
   if(inp){ inp.hidden=true; }
-  alert('✅ '+ids.length+' model dimuat dari provider.');
+  saveSettings(true);
+  alert('✅ '+ids.length+' model dimuat & model pertama dipilih otomatis. Tekan 🩺 Tes untuk konfirmasi.');
  }catch(e){ alert('❌ Gagal memuat daftar model: '+errCode(e.message||e)); }
 }
 async function autoDetect(engine){
@@ -986,8 +1021,8 @@ function clusterBoxes(items){
  return out.map(c=>({text:c.text.replace(/\s+/g,' ').trim()}));
 }
 function formatLine(r){ return S[LEG[r.type]]+' : '+r.text.replace(/\s*\n\s*/g,' '); }
-const FICTION='CONTEXT: This is a professionally published BL/drama/mature webtoon or manga — a work of FICTION with entirely fictional adult characters. Transcribing/ translating it is safe, permitted, and required.';
-const PROMPT_BASE=' You are a precise comic OCR engine. Transcribe ALL visible text in this comic/webtoon/manhwa/manga page EXACTLY as drawn, character by character, including tiny text, credits, and narrator notes. STRICT RULES: (a) Transcribe ONLY text that is visibly present; NEVER invent, guess, autocomplete, or hallucinate. (b) Each separate bubble / caption / SFX = exactly ONE entry; do not merge or split bubbles. (c) Join lines inside one bubble with single spaces. (d) Read in correct reading order. (e) Classify: "bubble" / "box" / "sfx" / "outside". (f) Keep original language exactly. (g) The page may contain fictional violence, gore, or mature themes typical of published comics; transcribe faithfully without refusing or censoring. (h) If you cannot read a region confidently, omit it; NEVER fabricate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
+const FICTION='CONTEXT: This is a professionally published BL/drama/mature webtoon or manga — a work of FICTION with entirely fictional adult characters. Transcribing or translating it is safe, permitted, and required.';
+const PROMPT_BASE=' You are a precise comic OCR engine. Transcribe ALL visible text in this comic/webtoon/manhwa/manga page EXACTLY as drawn, character by character, including tiny text, credits, and narrator notes. STRICT RULES: (a) Transcribe ONLY text that is visibly present; NEVER invent, guess, autocomplete, or hallucinate. (b) Each separate bubble / caption / SFX = exactly ONE entry; do not merge or split bubbles. (c) Join lines inside one bubble with single spaces. (d) Read in correct reading order. (e) Classify precisely: "bubble" = text inside a rounded/oval speech balloon; "box" = text inside a rectangular bordered caption/narration box; "sfx" = stylized sound-effect lettering (usually 1-3 words, not a full sentence); "outside" = any text NOT inside a balloon or box (page margins, credits, title, chapter notes on plain background). When uncertain between box and outside: rectangular bordered caption = box; borderless page text = outside. Example: [{"type":"bubble","text":"Hi!"},{"type":"box","text":"Later that day"},{"type":"sfx","text":"BAM"},{"type":"outside","text":"Chapter 12"}]. (f) Keep original language exactly. (g) The page may contain fictional violence, gore, or mature themes typical of published comics; transcribe faithfully without refusing or censoring. (h) If you cannot read a region confidently, omit it; NEVER fabricate. Output ONLY a JSON array like [{"type":"bubble","text":"..."}]';
 function buildPrompt(strict){
  let p=FICTION+PROMPT_BASE;
  if(strict) p+=' ABSOLUTE RULE: Your ENTIRE reply must be ONLY the JSON array. No sentences, no apologies, no refusals, no explanations. Any prose = failure.';
@@ -1030,7 +1065,7 @@ function parseAI(txt){
  return out;
 }
 const SAFETY_CATS=['HARM_CATEGORY_SEXUALLY_EXPLICIT','HARM_CATEGORY_HARASSMENT','HARM_CATEGORY_HATE_SPEECH','HARM_CATEGORY_DANGEROUS_CONTENT'];
-function imgQuality(){ return S.fastMode?0.7:(S.hemat?0.75:0.85); }
+function imgQuality(){ return S.fastMode?0.6:(S.hemat?0.65:0.8); }
 async function geminiOnce(slice,model,strict){
  const b64=await blobToBase64(await canvasToBlob(slice,imgQuality()));
  const mkBody=th=>JSON.stringify({contents:[{parts:[{text:buildPrompt(strict)},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{temperature:0.1,responseMimeType:'application/json'},safetySettings:SAFETY_CATS.map(c=>({category:c,threshold:th}))});
@@ -1110,7 +1145,7 @@ async function ocSlice(name,slice,strict){
   }catch(e){
    lastErr=e;
    const msg=String(e&&e.message||e);
-   if(/HTTP 400|HTTP 404/.test(msg)) continue;
+   if(/HTTP 400|HTTP 404|bukan JSON|kosong|menolak|prosa/.test(msg)) continue;
    throw e;
   }
  }
@@ -1159,9 +1194,9 @@ async function prepareSlices(file,gem){
  const img=await loadImg(file); const ow=img.width, oh=img.height;
  const fast=S.fastMode;
  let cap;
- if(netQuality==='poor') cap = gem?900:1000;
- else if(netQuality==='fair') cap = gem?(fast?1024:1280):(fast?1200:1400);
- else cap = gem?(fast?1024:(S.hemat?1280:1600)):(fast?1400:1600);
+ if(netQuality==='poor') cap = gem?800:1000;
+ else if(netQuality==='fair') cap = gem?(fast?896:1024):(fast?1200:1400);
+ else cap = gem?(fast?896:(S.hemat?1024:1280)):(fast?1200:1600);
  const sc=gem?(ow>cap?cap/ow:1):Math.min(2.5, Math.max(1500/ow, ow<=1600?1:1600/ow));
  const w=Math.round(ow*sc);
  const sliceH=S.segOn?S.segH:oh+1;
@@ -1205,14 +1240,14 @@ async function runOCR(files){
  pickBtn.disabled=true; pickBtnFM.disabled=true; refreshQueue();
  progWrap.hidden=false; setProg('Gambar 1/'+files.length+', menyiapkan...');
  if(netQuality==='poor') setStatus('🔴 Sinyal lemah — gambar diperkecil & proses serial.');
- const q=[];
- if(S.useGemini&&S.geminiKey)q.push('gemini');
- if(S.useGroq&&S.groqKey)q.push('groq');
- if(S.useMistral&&S.mistralKey)q.push('mistral');
- if(S.useHf&&S.hfKey)q.push('hf');
- if(S.useOR&&S.orKey)q.push('openrouter');
- if(S.useSumo&&S.sumoKey)q.push('sumopod');
- let engine=q.length?q.shift():null;
+ const pref=[];
+ if(S.useGemini&&S.geminiKey)pref.push('gemini');
+ if(S.useGroq&&S.groqKey)pref.push('groq');
+ if(S.useMistral&&S.mistralKey)pref.push('mistral');
+ if(S.useHf&&S.hfKey)pref.push('hf');
+ if(S.useOR&&S.orKey)pref.push('openrouter');
+ if(S.useSumo&&S.sumoKey)pref.push('sumopod');
+ let engine=pref.length?pref[0]:null;
  let useCloud = S.cloud && S.apiKey && S.apiKey!=='helloworld';
  if(S.cloud && !useCloud) runNotes.push('Cloud dimatikan: isi key OCR.space gratis dulu');
  let tw=null;
@@ -1220,7 +1255,8 @@ async function runOCR(files){
  let gem429streak=0, quotaHinted=false;
  const langs=Object.keys(S.langs).filter(k=>S.langs[k]).join('+');
  const opts={ logger:m=>{ if(m.status==='recognizing text') setStatus('🔍 OCR offline: '+(m.progress*100|0)+'%'); } };
- const inCooldown=()=> engine && cooldown[engine] && cooldown[engine]>Date.now();
+ const inCooldown=(e)=> e && cooldown[e] && cooldown[e]>Date.now();
+ const nextEngine=(cur)=>{ const i=cur?pref.indexOf(cur):-1; for(let j=i+1;j<pref.length;j++){ if(!inCooldown(pref[j])) return pref[j]; } return null; };
  const say=t=>setStatus(t);
  try{
   outer:
@@ -1229,7 +1265,8 @@ async function runOCR(files){
    for(let i=0;i<batch.length;i++){
     if(cancelled)break outer;
     const gi=b+i+1, before=results.length;
-    while(inCooldown()&&q.length) engine=q.shift();
+    const avail=pref.find(e=>!inCooldown(e));
+    if(avail) engine=avail;
     setProg('Gambar '+gi+'/'+files.length+', menyiapkan...');
     try{
      const slices=await prepareSlices(batch[i],!!engine);
@@ -1242,9 +1279,10 @@ async function runOCR(files){
        try{
         if(isBlankSlice(slices[si])){ perSlice[si]=[]; continue; }
         let lines=null, shrink=false, attempts=0, sumoRetry=0, gemRetry=0, freeRetry=0, parseRetry=0, strict=false;
-        while(engine&&!lines&&attempts<8&&(Date.now()-segStart<120000)&&!inCooldown()){
+        const gemWaits=[10000,30000];
+        while(engine&&!lines&&attempts<6&&(Date.now()-segStart<90000)&&!inCooldown(engine)){
          attempts++;
-         const useSlice=shrink?fitCanvas(slices[si],800):slices[si];
+         const useSlice=shrink?fitCanvas(slices[si],700):slices[si];
          setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+' ('+(ENG_NAMES[engine]||engine)+')');
          try{
           if(engine==='gemini'){ lines=await geminiSlice(useSlice,strict); await sleep(1500); }
@@ -1261,6 +1299,7 @@ async function runOCR(files){
           const refusal=/prosa|menolak|SAFETY|PROHIBITED|BLOCKLIST|IMAGE_SAFETY/i.test(msg);
           const parseFail=/bukan JSON|kosong/i.test(msg);
           const notFound=/404|not found/i.test(msg);
+          const goNext=(why)=>{ const nx=nextEngine(engine); if(nx){ say('⚠ '+en+': '+why+' — pindah ke '+(ENG_NAMES[nx]||nx)+'.'); runNotes.push(en+': '+why); engine=nx; shrink=false; strict=false; return true; } runNotes.push(en+': '+why+' → cadangan'); return false; };
           if((refusal||parseFail)&&!strict){
            strict=true;
            say('🧠 '+en+' membalas prosa/menolak — coba ulang dengan prompt ketat JSON-only.');
@@ -1268,72 +1307,64 @@ async function runOCR(files){
            continue;
           }
           if(engine==='sumopod'){
-           if(auth||noCredit){ say('💰 Sumopod: key/saldo ditolak — ganti mesin.'); runNotes.push('Sumopod: '+(noCredit?'saldo habis':'key ditolak')); engine=q.shift()||null; shrink=false; strict=false; continue; }
-           if(sumoRetry<5){
+           if(auth||noCredit){ if(goNext(noCredit?'saldo habis':'key ditolak')) continue; else break; }
+           if(sumoRetry<3){
             sumoRetry++;
-            say(overload? ('⏳ Sumopod kena limit/sibuk — coba lagi ('+sumoRetry+'/5).')
-             : parseFail? ('🧩 Sumopod balasan rusak — coba lagi dengan gambar kecil ('+sumoRetry+'/5).')
-             : ('🐌 Sumopod lambat — coba lagi ('+sumoRetry+'/5).'));
+            say(overload? ('⏳ Sumopod kena limit/sibuk — coba lagi ('+sumoRetry+'/3).')
+             : parseFail? ('🧩 Sumopod balasan rusak — coba lagi dengan gambar kecil ('+sumoRetry+'/3).')
+             : ('🐌 Sumopod lambat — coba lagi ('+sumoRetry+'/3).'));
             if(parseFail&&!shrink)shrink=true;
             await sleep(overload?2000:1200);
             continue;
            }
-           say('⚠ Sumopod gagal 5× di segmen ini — ganti mesin.');
-           runNotes.push('Sumopod: '+msg.slice(0,50)); engine=q.shift()||null; shrink=false; strict=false; continue;
+           if(goNext('gagal 3× di segmen ini')) continue; else break;
           }
-          if(auth){ say('🔑 Key '+en+' salah/kedaluwarsa (401/403) — mesin dilewati.'); runNotes.push(en+': key ditolak'); engine=q.shift()||null; shrink=false; strict=false; continue; }
-          if(noCredit){ say('💰 Saldo/kredit '+en+' habis (402) — mesin dilewati.'); runNotes.push(en+': saldo habis'); engine=q.shift()||null; shrink=false; strict=false; continue; }
-          if(notFound){ say('❓ '+en+' 404 — endpoint/model sudah dicoba otomatis, tetap gagal — ganti mesin.'); runNotes.push(en+': model 404'); engine=q.shift()||null; shrink=false; strict=false; continue; }
+          if(auth){ if(goNext('key salah/kedaluwarsa (401/403)')) continue; else break; }
+          if(noCredit){ if(goNext('saldo/kredit habis (402)')) continue; else break; }
+          if(notFound){ if(goNext('model 404 (sudah dicoba otomatis)')) continue; else break; }
           if(engine==='gemini'&&overload){
-           if(gemRetry<2){
+           if(gemRetry<1){
             gemRetry++;
             if(is429) shrink=true;
-            say(is429? ('⏳ Kuota gratis Gemini penuh (429) — tunggu 30 detik sampai kuota reset, coba lagi ('+gemRetry+'/2).')
-             : ('🌐 Server Gemini overload (503) — tunggu 30 detik, coba lagi ('+gemRetry+'/2).'));
-            await sleep(30000);
+            say(is429? ('⏳ Kuota gratis Gemini penuh (429) — tunggu '+Math.round((gemWaits[gemRetry-1]||10000)/1000)+' detik, coba lagi ('+gemRetry+'/1).')
+             : ('🌐 Server Gemini overload (503) — tunggu '+Math.round((gemWaits[gemRetry-1]||10000)/1000)+' detik, coba lagi ('+gemRetry+'/1).'));
+            await sleep(gemWaits[gemRetry-1]||10000);
             continue;
            }
-           cooldown[engine]=Date.now()+60000;
+           cooldown[engine]=Date.now()+30000;
            if(is429){
             gem429streak++;
-            if(gem429streak>=3&&!quotaHinted){
+            if(gem429streak>=2&&!quotaHinted){
              quotaHinted=true;
-             say('💡 Gemini 429 berulang: kuota per-hari kemungkinan habis. Tambah mesin gratis lain atau Sumopod; kuota reset besok.');
+             say('💡 Gemini 429 berulang: kuota per-hari kemungkinan habis. Tambah mesin gratis lain atau Sumopod; kuota reset besok. Gemini kembali otomatis setelah cooldown.');
              runNotes.push('Gemini: kuota gratis habis (429 berulang)');
             }
            }
-           if(q.length){ say('⛔ Gemini cooldown 60 detik — pindah ke mesin berikutnya (pola v9).'); runNotes.push('Gemini: overload → ganti mesin'); engine=q.shift(); shrink=false; strict=false; continue; }
-           say('⛔ Gemini cooldown & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
-           runNotes.push('Gemini: overload → cadangan'); break;
+           if(goNext('overload → cooldown 30 detik')) continue; else break;
           }
           if(overload){
-           if(freeRetry<2){
+           if(freeRetry<1){
             freeRetry++;
-            const waitMs=is429?10000:6000;
+            const waitMs=is429?6000:4000;
             if(is429) shrink=true;
-            say(is429? ('⏳ Kuota '+en+' penuh (429) — gambar dikecilkan & tunggu '+Math.round(waitMs/1000)+' detik, coba lagi ('+freeRetry+'/2).')
-             : ('🌐 Server '+en+' overload (503/502) — tunggu '+Math.round(waitMs/1000)+' detik, coba lagi ('+freeRetry+'/2).'));
+            say(is429? ('⏳ Kuota '+en+' penuh (429) — gambar dikecilkan & tunggu '+Math.round(waitMs/1000)+' detik, coba lagi ('+freeRetry+'/1).')
+             : ('🌐 Server '+en+' overload (503/502) — tunggu '+Math.round(waitMs/1000)+' detik, coba lagi ('+freeRetry+'/1).'));
             await sleep(waitMs);
             continue;
            }
-           cooldown[engine]=Date.now()+60000;
-           if(q.length){ say('⛔ '+en+' cooldown 60 detik — pindah ke mesin berikutnya.'); runNotes.push(en+': overload → ganti mesin'); engine=q.shift(); shrink=false; strict=false; continue; }
-           say('⛔ '+en+' cooldown & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
-           runNotes.push(en+': overload → cadangan'); break;
+           cooldown[engine]=Date.now()+30000;
+           if(goNext('overload → cooldown 30 detik')) continue; else break;
           }
-          if(netErr&&attempts<=2){ say('📶 Jaringan terganggu/timeout di '+en+' — coba lagi ('+attempts+'/8).'); await sleep(1200); continue; }
-          if(refusal){ say('🚫 '+en+' menolak konten — pindah mesin. (Coba nyalakan Mode smut/gore.)'); runNotes.push(en+': menolak/prosa'); engine=q.shift()||null; shrink=false; strict=false; continue; }
+          if(netErr&&attempts<=2){ say('📶 Jaringan terganggu/timeout di '+en+' — coba lagi ('+attempts+'/6).'); await sleep(1200); continue; }
+          if(refusal){ if(goNext('menolak konten (coba nyalakan Mode smut/gore)')) continue; else break; }
           if(parseFail){
            if(parseRetry<1){ parseRetry++; say('🧩 Balasan '+en+' tidak valid — coba dengan gambar lebih kecil.'); shrink=true; continue; }
-           if(q.length){ say('⚠ '+en+' terus membalas tidak valid — pindah mesin.'); engine=q.shift(); shrink=false; strict=false; continue; }
-           say('⚠ '+en+' tidak valid & tidak ada mesin lain — pakai cadangan.'); break;
+           if(goNext('terus membalas tidak valid')) continue; else break;
           }
-          if(q.length){ say('⚠ '+en+' gagal: '+msg.slice(0,60)+' — pindah mesin.'); runNotes.push(en+': '+msg.slice(0,50)); engine=q.shift(); shrink=false; strict=false; continue; }
-          say('⚠ '+en+' gagal & tidak ada mesin lain — pakai cadangan untuk segmen ini.');
-          runNotes.push(en+': '+msg.slice(0,50)); break;
+          if(goNext('gagal: '+msg.slice(0,50))) continue; else break;
          }
         }
-        if(!lines&&inCooldown()){ say('⛔ '+(ENG_NAMES[engine]||engine)+' masih cooldown — coba cadangan untuk segmen ini.'); }
+        if(!lines&&inCooldown(engine)){ say('⛔ '+(ENG_NAMES[engine]||engine)+' masih cooldown — coba cadangan untuk segmen ini.'); }
         if(!lines&&useCloud){
          setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+' (cloud)');
          say('☁️ Semua AI gagal untuk segmen ini — coba OCR Cloud...');
@@ -1342,7 +1373,9 @@ async function runOCR(files){
         }
         if(!lines){
          setProg('Gambar '+gi+'/'+files.length+', segmen '+(si+1)+'/'+slices.length+' (offline)');
-         say('🔍 Coba OCR offline untuk segmen ini (tanpa internet)...');
+         const ready=localStorage.getItem('rigel_offline_ready');
+         if(!tw) say('⚙ Menyiapkan OCR offline'+(ready?' (paket bahasa siap)':' — pertama kali bisa lama')+'...');
+         else say('🔍 Coba OCR offline untuk segmen ini...');
          try{
           if(!tw){ tw=await makeWorker(langs,opts); activeWorker=tw; }
           const data=await withTimeout(tw.recognize(slices[si]),45000);
@@ -1575,7 +1608,6 @@ async function runTranslate(){
  pushHist($('trOutput').value);
 }
 async function copyTrans(){ try{ await navigator.clipboard.writeText($('trOutput').value); }catch(e){ $('trOutput').select(); document.execCommand('copy'); } setTrStatus('✅ Tersalin!'); setTimeout(()=>setTrStatus(''),1500); }
-if(!S.legend_outside){ S.legend_outside='"'; persist(); }
 setMode('bulk');
 setTheme(S.theme||'pink');
 $('smutMode').checked=!!S.smutMode;
